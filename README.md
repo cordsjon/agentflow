@@ -248,6 +248,8 @@ agentflow is a set of markdown files and conventions. But two companion tools we
 A native desktop GUI (WinForms/PowerShell) that exposes all 30+ loop functions without touching the terminal. Designed for the operator who wants to see what the agent is doing and intervene when needed.
 
 **Dual-mode UI:**
+<img width="1574" height="817" alt="image" src="https://github.com/user-attachments/assets/10ce89ef-7d6e-40d1-ae8d-a06189910948" />
+
 
 ```
 COMPACT MODE (~420×120 px, always-on-top)
@@ -289,7 +291,7 @@ DASHBOARD MODE (~900×700 px)
 The critical constraint: the agent is the only writer to pipeline markdown files (BACKLOG, TODO-Today, DONE-Today). The GUI communicates through a `.claude-action` file — a command channel that the agent polls and executes. This eliminates concurrent write hazards entirely.
 
 ```
-┌──────────┐     .claude-action      ┌──────────┐
+┌──────────┐     .claude-action       ┌──────────┐
 │   GUI    │ ──── writes command ───→ │  Agent   │
 │ (Remote  │                          │ (Claude  │
 │  Control)│ ←── reads  result ────── │  Code)   │
@@ -313,25 +315,26 @@ The critical constraint: the agent is the only writer to pipeline markdown files
 
 A lightweight web dashboard that visualizes the entire agentflow pipeline as a 6-column Kanban board. Think "Jira for markdown files" — but local, instant, and zero-config.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Pipeline Dashboard          [Project Filter v]              │
+<img width="3806" height="1942" alt="image" src="https://github.com/user-attachments/assets/e159528d-1547-4077-96bd-653e81231b98" />
+
+┌────────────────────────────────────────────────────────────┐
+│  Pipeline Dashboard          [Project Filter v]            │
 ├─────────┬─────────┬─────────┬─────────┬─────────┬──────────┤
 │ INBOX   │IDEATION │REFINING │ READY   │ QUEUE   │  DONE    │
 │         │         │         │         │         │          │
-│ ┌─────┐ │ ┌─────┐ │ ┌─────┐ │ ┌─────┐ │ ┌─────┐ │ ┌──────┐│
-│ │ Raw │ │ │Idea │ │ │Spec │ │ │#1   │ │ │[x]  │ │ │14:32 ││
-│ │ bug │ │ │     │ │ │in   │ │ │Ready│ │ │Done │ │ │Done  ││
-│ │     │ │ │     │ │ │prog │ │ │     │ │ │     │ │ │      ││
-│ │[/sc]│ │ │[/sc]│ │ │[/sc]│ │ │[/sc]│ │ │[/sc]│ │ │      ││
-│ └─────┘ │ └─────┘ │ └─────┘ │ └─────┘ │ └─────┘ │ └──────┘│
+│ ┌─────┐ │ ┌─────┐ │ ┌─────┐ │ ┌─────┐ │ ┌─────┐ │ ┌──────┐ │
+│ │ Raw │ │ │Idea │ │ │Spec │ │ │#1   │ │ │[x]  │ │ │14:32 │ │
+│ │ bug │ │ │     │ │ │in   │ │ │Ready│ │ │Done │ │ │Done  │ │
+│ │     │ │ │     │ │ │prog │ │ │     │ │ │     │ │ │      │ │
+│ │[/sc]│ │ │[/sc]│ │ │[/sc]│ │ │[/sc]│ │ │[/sc]│ │ │      │ │
+│ └─────┘ │ └─────┘ │ └─────┘ │ └─────┘ │ └─────┘ │ └──────┘ │
 │ ┌─────┐ │         │         │ ┌─────┐ │ ┌─────┐ │          │
 │ │Link │ │         │         │ │#2   │ │ │[ ]  │ │          │
 │ │     │ │         │         │ │Ready│ │ │Next │ │          │
 │ └─────┘ │         │         │ └─────┘ │ └─────┘ │          │
 ├─────────┴─────────┴─────────┴─────────┴─────────┴──────────┤
-│  Promote →                                                   │
-└─────────────────────────────────────────────────────────────┘
+│  Promote →                                                 │
+└────────────────────────────────────────────────────────────┘
 ```
 
 **Key features:**
