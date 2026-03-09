@@ -187,15 +187,47 @@ Modern AI teams don't use just one model. Claude excels at implementation. Gemin
 
 4. **Single-agent mode:** When only one agent is active (the common case), the orchestrator still adds value through stall detection, dependency cascading, and context preloading. No message bus needed.
 
+### Tether — The Reference Message Bus
+
+The multi-agent architecture was developed alongside [**Tether**](https://github.com/latentcollapse/Tether), an open-source LLM-to-LLM message bus purpose-built for agent communication.
+
+**What Tether does:**
+- **SQLite + BLAKE3** — tamper-evident message storage with content-addressed hashing
+- **LC-B encoding** — compact binary format (9 tags) for structured agent messages
+- **13 MCP tools** — `tether_send`, `tether_receive`, `tether_inbox`, `tether_thread_create`, `tether_resolve`, `tether_snapshot`, `tether_export`, and more
+- **HTTP API** (port 7890) — REST endpoints for agents without MCP support
+- **Google Sheets bridge** — enables non-MCP agents (Gemini, ChatGPT) to participate via AppScript + auto-refresh polling
+- **Thread model** — conversations grouped by topic with resolve/collapse lifecycle
+
+**How it fits agentflow:**
+
+```
+┌─────────────┐                          ┌─────────────┐
+│   Claude     │ ── MCP (13 tools) ────→ │             │
+│   @claude    │                          │   Tether    │
+│   ACTIVE     │ ←─────────────────────── │   tether.db │
+└─────────────┘                          │             │
+                                          │  HTTP :7890 │
+┌─────────────┐                          │             │
+│   Gemini     │ ── Sheets bridge ──────→ │             │
+│   @gemini    │                          │             │
+│   STUB       │ ←── poll (2 min) ────── │             │
+└─────────────┘                          └─────────────┘
+```
+
+The orchestrator dispatches tasks via `tether_send(to="@agent", subject="task-assignment")`. Agents report back via `tether_send(to="orchestrator", subject="task-complete")`. In single-agent mode (Claude only), Tether is not required — the loop runs entirely through local file annotation.
+
+**Tether is optional.** agentflow works without it. But if you want multi-agent communication with tamper-evident message history, thread management, and cross-platform transport, Tether is the reference implementation.
+
 ### Building Your Own Multi-Agent Setup
 
 To add a new agent:
 
 1. Add an entry to `AGENT_CAPABILITIES.md` with status `stub`
-2. Set up transport (message bus, HTTP, or manual relay)
+2. Set up transport (Tether MCP, HTTP API, Sheets bridge, or manual relay)
 3. Run the activation checklist:
    - Verify transport (can the agent receive messages?)
-   - Complete first contact (round-trip message)
+   - Complete first contact (successful round-trip via Tether or chosen transport)
    - Send bootstrap context (project overview, conventions)
    - Route one low-risk test task
    - Set routing weight based on observed capability
