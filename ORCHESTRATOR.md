@@ -127,7 +127,7 @@ Counter resets to 0 when:
 When the orchestrator assigns a task, it assembles a context hint in the `_Context:_` line:
 
 1. **File references** — Files mentioned in the task description or spec
-2. **Related Tether threads** — If the task originated from a Tether message, include thread name
+2. **Related message bus threads** — If the task originated from a message bus message, include thread name
 3. **Prior art** — If DONE-Today or archives contain related completed items, reference them
 4. **Risk flags** — If the task touches an item in `BACKLOG.md ## Risks`, surface the risk entry
 
@@ -184,12 +184,12 @@ All fields are optional. Items without `@agent` are treated as `@claude` (defaul
 
 The supervisor already monitors stall conditions via `.claude-action` mtime. The orchestrator formalizes this into the `stall:N` counter. No changes to supervisor needed — it continues to monitor files. The orchestrator reads supervisor output, not the reverse.
 
-### Tether
+### Message Bus
 
 When multiple agents are active:
-- Orchestrator posts task assignments via `tether_send(to=agent, subject="task-assignment", ...)`
-- Agent reports completion via `tether_send(to="orchestrator", subject="task-complete", ...)`
-- For Claude-only mode (current): Tether is not used. Routing is local file annotation only.
+- Orchestrator posts task assignments via the message bus
+- Agent reports completion via the message bus
+- For single-agent mode: message bus is not used. Routing is local file annotation only.
 
 ### Planning Rounds (§8.5)
 
@@ -213,7 +213,7 @@ The orchestrator respects the semaphore exactly like the executor:
 - Does NOT execute tasks — it routes and monitors, the executor runs
 - Does NOT manage BACKLOG graduation — that stays with DOR/DOD gates
 - Does NOT spawn parallel agents — single-threaded execution preserved
-- Does NOT require Tether for Claude-only mode — pure file annotation
+- Does NOT require a message bus for single-agent mode — pure file annotation
 - Does NOT add new quality gates — reuses existing greenlight + cleanup sub-loop
 
 ---
@@ -224,6 +224,6 @@ The orchestrator is implemented as part of the `/autopilot` skill, not as a sepa
 
 **Phase 1 (current):** Claude-only routing. The orchestrator always assigns `@claude` with confidence 1.0. Value comes from stall detection, dependency cascade, and context preloading — not from multi-agent routing.
 
-**Phase 2 (future):** When Gemini/ChatGPT are active via Tether, the scoring logic selects the best agent. Routing confidence < 1.0 triggers human confirmation before assignment.
+**Phase 2 (future):** When Gemini/ChatGPT are active via message bus, the scoring logic selects the best agent. Routing confidence < 1.0 triggers human confirmation before assignment.
 
-**Phase 3 (future):** Orchestrator-as-agent via Tether. The orchestrator itself becomes an agent that other agents can query for priority and assignment information.
+**Phase 3 (future):** Orchestrator-as-agent via message bus. The orchestrator itself becomes an agent that other agents can query for priority and assignment information.

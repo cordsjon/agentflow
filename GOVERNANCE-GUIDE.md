@@ -40,14 +40,14 @@
            ┌──────────┬──────────┬────────┴────────┬──────────┐
            │          │          │                  │          │
       ┌────┴────┐ ┌───┴───┐ ┌───┴────┐ ┌──────────┴┐ ┌──────┴───┐
-      │SVG-PAINT│ │Tether │ │Sidequest│ │Whitelabel │ │ Skills   │
-      │ :9001   │ │ :7890 │ │        │ │           │ │          │
-      └─────────┘ └───────┘ └────────┘ └───────────┘ └──────────┘
+      │Project-A│ │Project-B│ │Project-C│ │Project-D │ │Project-E │
+      │  :9001  │ │  :7890  │ │         │ │          │ │          │
+      └─────────┘ └─────────┘ └─────────┘ └──────────┘ └──────────┘
            │          │
-           │    Tether Message Bus
+           │    Agent Message Bus
            │    ┌─────┴─────────────────────┐
-           │    │         tether.db          │
-           │    │    (BLAKE3 · LC-B · MCP)   │
+           │    │      message-bus.db        │
+           │    │   (your message layer)     │
            │    └─────┬─────────────────────┘
            │          │
       ┌────┴──────────┼──────────────┐
@@ -61,7 +61,7 @@
 
 **Core principle:** Governance files are the single source of truth.
 Every project gets a `governance/` directory synced from the central repo.
-Agents communicate via Tether. The orchestrator routes tasks to agents.
+Agents communicate via a message bus. The orchestrator routes tasks to agents.
 
 ---
 
@@ -301,7 +301,7 @@ USER INPUT (any message without /q prefix)
 │          │          │                               │ Architecture  │
 ├──────────┼──────────┼───────────────────────────────┼───────────────┤
 │ @gemini  │ STUB     │ Google Sheets bridge           │ Research      │
-│          │          │ Tether HTTP API                │ Large-context │
+│          │          │ message bus HTTP API                │ Large-context │
 │          │          │ (2min polling)                 │ Spec review   │
 │          │          │                               │ SEO/Etsy      │
 ├──────────┼──────────┼───────────────────────────────┼───────────────┤
@@ -420,13 +420,11 @@ D:\Temp\git\Governance\
 
 ### Tools
 
-**[temujira](../temujira/)** — Markdown-native Kanban pipeline dashboard.
+**Pipeline Dashboard** — Markdown-native Kanban pipeline dashboard (e.g. temujira or similar).
 
 ```
-Repo:    D:\Temp\git\temujira\
-Start:   python D:\Temp\git\temujira\dashboard.py [--port 8500] [--root D:\Temp\git]
+Start:   python dashboard.py [--port 8500] [--root /path/to/projects]
 Open:    http://localhost:8500
-Docs:    D:\Temp\git\temujira\README.md
 ```
 
 Features:
@@ -461,14 +459,12 @@ Features:
     └── DONE-2026-W{NN}.md  ← Weekly archives
 ```
 
-### Sync Status (as of 2026-03-05)
+### Sync Status
 
 ```
-Governance ──→ SVG-PAINT/governance/     [synced]
-           ──→ Tether/governance/        [synced]
-           ──→ Sidequest/governance/     [synced]
-           ──→ Whitelabel/governance/    [synced - new]
-           ──→ Skills/governance/        [synced - new]
+Governance ──→ project-a/governance/     [synced]
+           ──→ project-b/governance/     [synced]
+           ──→ project-c/governance/     [synced]
 ```
 
 ---
@@ -553,9 +549,9 @@ User: "Research Etsy SEO trends for contrast card listings"
    ├── Score @chatgpt:  4 (Etsy + listings + web)
    └── Route: @gemini, confidence: 0.75
 
-3. DISPATCH via Tether
-   ├── tether_send(to="gemini", subject="research-task", text="...")
-   └── Wait for tether_send(to="orchestrator", subject="task-complete", ...)
+3. DISPATCH via message bus
+   ├── send(to="gemini", subject="research-task", text="...")
+   └── Wait for send(to="orchestrator", subject="task-complete", ...)
 
 4. VALIDATE result
    └── Human reviews Gemini's research output before it enters the pipeline
@@ -572,7 +568,7 @@ User: "Research Etsy SEO trends for contrast card listings"
 | **BV Score** | Business Value score: Revenue (L/M/H) x User Reach (L/M/H) x Strategic Alignment (L/M/H). Max 9. Used for initiative prioritization. |
 | **Completion Cascade** | After a task completes, the orchestrator checks if it unblocks any `needs:` dependencies in BACKLOG and suggests queuing them. |
 | **Confidence** | Routing confidence score (0.0-1.0). How certain the orchestrator is about the agent assignment. <0.3 = unrouted. |
-| **Context Preloading** | The orchestrator assembles file refs, risk flags, Tether threads, and prior art into the `_Context:_` line before execution. |
+| **Context Preloading** | The orchestrator assembles file refs, risk flags, message bus threads, and prior art into the `_Context:_` line before execution. |
 | **Critical Path** | Items in BACKLOG locked in sequence. Cannot be deprioritized relative to each other. `/workflow` must respect this order. |
 | **Cleanup Sub-Loop** | Runs after every implementation, before every commit. Greenlight → fix Low → pause on Medium+. |
 | **DOD** | Definition of Done. Exit gate. Must pass before deployment. Code quality + architecture + committed + deployable + pipeline housekeeping. |
@@ -580,12 +576,12 @@ User: "Research Etsy SEO trends for contrast card listings"
 | **DOR-lite** | Lightweight gate for bugs/hotfixes. Root cause + fix plan + regression test + constraints + estimate. |
 | **DONE-Today** | Completion log with timestamps. Auto-archives to `done/DONE-{YYYY}-W{WW}.md` at 200 lines. |
 | **Graduation** | Moving an item from one pipeline stage to the next. Each graduation has a gate command. |
-| **Greenlight** | Project-specific test/quality suite. Must be 100% green before any commit. SVG-PAINT: `python -m app.cli.main greenlight --all`. |
+| **Greenlight** | Project-specific test/quality suite. Must be 100% green before any commit. Example: `python -m pytest tests/ --tb=short`. |
 | **Hotfix** | A bug that actively blocks development. Fast-tracks from INBOX directly to TODO-Today (skips Ideation/Refining). Requires Bug DOR-lite. |
 | **INBOX** | Raw input queue. Anything the user sends (without `/q` prefix) lands here first. Triaged into BACKLOG. |
 | **Inner Loop** | Autopilot execution cycle: semaphore check → read task → route → DOR → execute → cleanup → commit → done → loop. |
 | **KNOWN_PATTERNS** | Anti-pattern registry. Must be consulted before writing new code. Re-introducing a known pattern is a quality regression. |
-| **LC-B** | Latent Canonical Binary. Tether's encoding format. 9 tags (NULL through OBJ_END). Never read with raw SQL. |
+
 | **Orchestrator** | Lightweight routing layer. A phase inside autopilot, not a daemon. Assigns `@agent`, detects stalls, cascades completions. See ORCHESTRATOR.md. |
 | **Outer Loop** | Human-driven queue lifecycle. User/planning populates TODO-Today via `/workflow`. |
 | **Planning Round** | Triggered when queue is near-empty, 5+ Ready items idle, critical path changed, or retro completed. Scans INBOX, checks staleness, reviews risks, updates priorities, runs `/workflow`. |
@@ -599,7 +595,7 @@ User: "Research Etsy SEO trends for contrast card listings"
 | **Stall** | A task that isn't making progress. Detected by time (no file changes), error loops (3+ same error), or explicit `STALLED:` signal. Escalation: warn → action warning → pause. |
 | **Stall Counter** | `stall:N` tag on TODO-Today items. Incremented by supervisor on each check with no progress. Resets on any progress. |
 | **Supervisor** | `autopilot-supervisor.ps1`. Process-level watchdog: stall detection, health heartbeat, crash recovery, log rotation, resource guard, queue complete detection. |
-| **Tether** | LLM-to-LLM message bus. SQLite + BLAKE3 + LC-B. 13 MCP tools. HTTP API on port 7890. Google Sheets bridge for non-MCP agents. |
+| **Message Bus** | LLM-to-LLM communication layer. Any message bus that supports agent-to-agent messaging (e.g. Tether, custom HTTP, pub/sub). |
 | **TODO-Today** | Living execution queue. Flat checkbox list. First unchecked = next task. Format: checkbox + bold phase + `/sc:` command + context. |
 | **/q prefix** | Question-only signal. Messages starting with `/q` are answered conversationally — no triage, no queue items created. |
 | **/workflow** | Skill that converts Ready BACKLOG items into TODO-Today queue items. Respects `#N` priority and Critical Path order. |
