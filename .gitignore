@@ -1,0 +1,8 @@
+# Project-specific files (not part of the framework)
+TODO-Today.md
+DONE-Today.md
+INBOX.md
+.autopilot
+.claude-action
+HANDOVER.md
+done/
