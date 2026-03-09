@@ -33,6 +33,7 @@ INBOX → BACKLOG (Ideation → Refining → Ready) → TODO-Today → DONE-Toda
 | [ORCHESTRATOR.md](ORCHESTRATOR.md) | Task routing, agent assignment, stall detection |
 | [AGENT_CAPABILITIES.md](AGENT_CAPABILITIES.md) | Agent capability matrix for task routing |
 | [KNOWN_PATTERNS.md](KNOWN_PATTERNS.md) | Anti-pattern catalog — consult before writing code |
+| [SKILLS.md](SKILLS.md) | Complete skill catalog — dependencies, chains, examples, portfolios |
 
 ## The Loop (simplified)
 
@@ -110,6 +111,99 @@ Plus 4 support process portfolios (GTM, SEO, Intel, Content) and an on-demand to
 - **Evidence-based completion:** No task is "done" without verification evidence (test output, screenshots).
 - **Learnings are part of the fix:** Every bug fix updates the anti-pattern catalog. The fix is incomplete without documentation.
 - **Continuous improvement:** Every 10 completed stories triggers a retrospective.
+
+---
+
+## Origin Story
+
+agentflow started as a simple TODO list and a CLAUDE.md file in a solo developer's side project — an SVG asset generation platform built with FastAPI and Claude Code.
+
+### The Humble Beginning
+
+**Phase 0 — The "just ship it" era.**
+No process. Prompt Claude, get code, paste it, hope it works. Context lost between sessions. Same bugs reintroduced. Same anti-patterns rediscovered. The agent was powerful but amnesiac.
+
+**Phase 1 — The checklist.**
+A `TODO-Today.md` file. A simple `DONE-Today.md` to track what shipped. A `CLAUDE.md` with rules like "don't use bare except" and "always run tests before commit." Better, but still reactive — rules were added after each painful bug, not before.
+
+**Phase 2 — The loop.**
+The realization that autonomous agents need _structure_, not just instructions. The inner loop emerged: pick task → implement → test → commit → next. Then the semaphore (`.autopilot` file) — a kill switch for when the agent goes off track. Then the cleanup sub-loop — quality gates that halt execution on medium+ severity findings.
+
+**Phase 3 — The pipeline.**
+Work items need to mature before implementation. INBOX for raw dumps. BACKLOG with Ideation → Refining → Ready stages. Definition of Ready (DOR) as an entry gate. Definition of Done (DOD) as an exit gate. Graduation commands to move items through the pipeline with quality checks at each transition.
+
+**Phase 4 — The skills.**
+Repeatable prompt modules that plug into specific loop stages. Test-driven development at step 6. Verification at step 7. Code review at step 8. Each skill encapsulates expertise that would otherwise be lost between sessions. 60+ skills organized into dev loop, support processes, and an on-demand toolbox.
+
+**Phase 5 — The governance layer.**
+One project became many. The loop needed to be consistent across all of them. A central Governance repo with synced copies. An orchestrator for multi-agent routing. Known patterns that travel between projects. Retrospectives every 10 stories that feed improvements back into the system.
+
+### What We Learned
+
+1. **Agents don't need freedom — they need guardrails.** The more structure you give an autonomous agent, the better it performs. Not because it's dumb, but because structure prevents drift.
+
+2. **Memory is the hardest problem.** Context windows compress, sessions end, conversations get lost. Every mechanism in agentflow exists because forgetting was more expensive than remembering.
+
+3. **Quality gates must be automatic.** If a human has to remember to run tests, tests won't get run. If the loop runs tests automatically and halts on failure, quality is guaranteed.
+
+4. **Process scales, heroics don't.** A single developer with agentflow can sustain output that would normally require a small team — but only because the process catches what the human would miss.
+
+---
+
+## Expansion: Multi-Agent Communication
+
+agentflow was designed for a single agent (Claude Code), but the architecture supports multi-agent orchestration through a message bus layer.
+
+### The Problem
+
+Modern AI teams don't use just one model. Claude excels at implementation. Gemini has a million-token context window for research. ChatGPT writes compelling copy. Grok has real-time information. Each agent has strengths, but none can do everything.
+
+### The Architecture
+
+```
+                    ┌─────────────────────┐
+                    │    Orchestrator      │  Routes tasks to best agent
+                    │  (ORCHESTRATOR.md)   │  based on capability scoring
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │    Message Bus       │  Agent-to-agent communication
+                    │  (any transport)     │  SQLite, HTTP, pub/sub, etc.
+                    └──┬──────┬──────┬────┘
+                       │      │      │
+                  ┌────▼─┐ ┌─▼────┐ ┌▼─────┐
+                  │Claude│ │Gemini│ │ChatGPT│
+                  │ACTIVE│ │ STUB │ │ STUB  │
+                  └──────┘ └──────┘ └───────┘
+```
+
+### How It Works
+
+1. **Capability scoring:** Each agent has a manifest ([AGENT_CAPABILITIES.md](AGENT_CAPABILITIES.md)) listing strengths, context access, and constraints. The orchestrator scores each agent against the task keywords.
+
+2. **Routing confidence:** Score > 0.7 = auto-route. Score 0.3-0.7 = suggest with human confirmation. Score < 0.3 = unroutable.
+
+3. **Message bus transport:** Any communication layer works — HTTP API, SQLite-based messaging, Google Sheets bridge, or manual paste. The framework is transport-agnostic.
+
+4. **Single-agent mode:** When only one agent is active (the common case), the orchestrator still adds value through stall detection, dependency cascading, and context preloading. No message bus needed.
+
+### Building Your Own Multi-Agent Setup
+
+To add a new agent:
+
+1. Add an entry to `AGENT_CAPABILITIES.md` with status `stub`
+2. Set up transport (message bus, HTTP, or manual relay)
+3. Run the activation checklist:
+   - Verify transport (can the agent receive messages?)
+   - Complete first contact (round-trip message)
+   - Send bootstrap context (project overview, conventions)
+   - Route one low-risk test task
+   - Set routing weight based on observed capability
+4. Update status from `stub` to `active`
+
+The orchestrator handles routing automatically once the agent is registered and weighted.
+
+---
 
 ## License
 
