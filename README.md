@@ -182,16 +182,16 @@ Modern AI teams don't use just one model. Claude excels at implementation. Gemin
 
 ```
                     ┌─────────────────────┐
-                    │    Orchestrator      │  Routes tasks to best agent
-                    │  (ORCHESTRATOR.md)   │  based on capability scoring
+                    │    Orchestrator     │  Routes tasks to best agent
+                    │  (ORCHESTRATOR.md)  │  based on capability scoring
                     └──────────┬──────────┘
                                │
                     ┌──────────▼──────────┐
-                    │    Message Bus       │  Agent-to-agent communication
-                    │  (any transport)     │  SQLite, HTTP, pub/sub, etc.
+                    │    Message Bus      │  Agent-to-agent communication
+                    │  (any transport)    │  SQLite, HTTP, pub/sub, etc.
                     └──┬──────┬──────┬────┘
                        │      │      │
-                  ┌────▼─┐ ┌─▼────┐ ┌▼─────┐
+                  ┌────▼─┐ ┌─▼────┐ ┌▼──────┐
                   │Claude│ │Gemini│ │ChatGPT│
                   │ACTIVE│ │ STUB │ │ STUB  │
                   └──────┘ └──────┘ └───────┘
