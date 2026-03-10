@@ -40,7 +40,10 @@ Each agent entry follows this structure:
 - **Context access:**
   - Full read/write: all project repos
   - MCP-based code intelligence indexes
-  - MCP servers: Tether, Context7, Mermaid, Figma, Notion, Linear, HF, MS Learn
+  - MCP servers — full registry: `~/.claude/MCP-SERVERS.md`
+    - **claude.ai managed:** Context7, Figma, GitHub, Linear, Notion, Playwright, Hugging Face, Mermaid Chart, Miro, Gamma, Canva, WordPress.com, Make, Consensus, Microsoft Learn
+    - **local:** vexp, playwright, filesystem, github, sqlite, comfyui
+    - **custom:** Tether (agent bridge — Google Sheets + HTTP relay)
   - File system: full local access
   - Git: full read/write
 - **Constraints:**
