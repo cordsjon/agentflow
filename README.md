@@ -124,6 +124,68 @@ Plus 4 support process portfolios (GTM, SEO, Intel, Content) and an on-demand to
 
 5. **Try the demo:** Clone [**agentflow-demo**](https://github.com/cordsjon/agentflow-demo) — a minimal FastAPI app with pre-filled pipeline stages at every point. Run it, watch the loop, record it.
 
+## Claude Code Skills
+
+agentflow ships as **10 installable Claude Code skills** in `.claude/skills/`. Copy the skill directories into any project to get the full Scrumban loop as slash commands.
+
+### Installation
+
+**Option A — Copy into your project:**
+```bash
+cp -r agentflow/.claude/skills/agentflow-* your-project/.claude/skills/
+```
+
+**Option B — Personal skills (all projects):**
+```bash
+cp -r agentflow/.claude/skills/agentflow-* ~/.claude/skills/
+```
+
+**Option C — Git submodule:**
+```bash
+cd your-project
+git submodule add https://github.com/cordsjon/agentflow .claude/skills/agentflow
+```
+
+### Available Skills
+
+| Skill | Command | Invocation | Description |
+|-------|---------|------------|-------------|
+| **Loop** | `/agentflow-loop` | Manual | 14-step inner loop execution |
+| **Autopilot** | `/agentflow-autopilot` | Manual | Start autonomous task processing |
+| **Kickoff** | `/agentflow-kickoff` | Manual | Daily session startup routine |
+| **Triage** | `/agentflow-triage` | Manual | Route INBOX items into pipeline |
+| **Workflow** | `/agentflow-workflow` | Manual | Populate TODO-Today from BACKLOG |
+| **DOR** | `/agentflow-dor` | Auto + Manual | Definition of Ready gate check |
+| **DOD** | `/agentflow-dod` | Auto + Manual | Definition of Done gate check |
+| **Retro** | `/agentflow-retro` | Manual | Retrospective (every 10 stories) |
+| **Orchestrator** | — | Auto (background) | Task routing and stall detection |
+| **FIPD** | — | Auto (background) | Finding classification taxonomy |
+
+**Manual** = you invoke with `/command`. **Auto** = Claude invokes when relevant. **Background** = loaded as context, not directly invoked.
+
+### Skill Structure
+
+Each skill follows this layout:
+```
+agentflow-<name>/
+├── SKILL.md           # Frontmatter + instructions (loaded by Claude Code)
+└── reference.md       # Detailed docs (loaded on demand via markdown links)
+```
+
+### Required Project Files
+
+The skills expect these files to exist in your project root:
+
+```
+INBOX.md          # Raw input dump
+BACKLOG.md        # ## Ideation / ## Refining / ## Ready
+TODO-Today.md     # ## Queue (checkbox list)
+DONE-Today.md     # Completed items with timestamps
+.autopilot        # Semaphore: "run" or "pause"
+```
+
+Use the templates in [`templates/`](templates/) to bootstrap them.
+
 ## Design Principles
 
 - **Queue-first:** Never implement during triage. Write the queue item first, then execute.
