@@ -1,0 +1,55 @@
+name: business-panel
+description: "Multi-expert business analysis — strategic review and recommendations"
+
+modes:
+  - discussion
+  - debate
+  - socratic
+
+focus-areas:
+  - name: competitive
+    description: "Competitive positioning, market forces, strategy"
+    lead: michael-porter
+    experts: [michael-porter, clayton-christensen, wckim-mauborgne]
+
+  - name: growth
+    description: "Marketing, tribe building, scaling"
+    lead: seth-godin
+    experts: [seth-godin, jim-collins, peter-drucker]
+
+  - name: risk
+    description: "Risk management, antifragility, systems dynamics"
+    lead: nassim-taleb
+    experts: [nassim-taleb, donella-meadows]
+
+  - name: communication
+    description: "Structured clarity, presentation, stakeholder messaging"
+    lead: jeanluc-doumont
+    experts: [jeanluc-doumont, seth-godin]
+
+default-experts: [michael-porter, clayton-christensen, peter-drucker, nassim-taleb]
+
+max-experts: 6
+
+auto-select:
+  - keywords: [startup, disruption, innovation, pivot]
+    add: [clayton-christensen]
+  - keywords: [marketing, brand, audience, tribe, community]
+    add: [seth-godin]
+  - keywords: [scale, excellence, flywheel, hedgehog]
+    add: [jim-collins]
+  - keywords: [blue ocean, differentiation, uncontested]
+    add: [wckim-mauborgne]
+  - keywords: [systems, feedback, leverage, dynamics]
+    add: [donella-meadows]
+  - keywords: [risk, volatility, tail, fragile, black swan]
+    add: [nassim-taleb]
+
+# Advisory panel — no pass/fail scoring
+scoring: null
+
+output:
+  default-format: standard
+  include-scores: false
+  include-roadmap: true
+  include-consensus: true
