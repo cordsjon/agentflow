@@ -1,4 +1,4 @@
-# Shepherd
+# Shepherd / agentflow
 
 **Unified AI agent governance — pipeline, skills, expert panels, and persistence in one framework.**
 
