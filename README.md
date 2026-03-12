@@ -384,25 +384,7 @@ A lightweight web dashboard that visualizes the entire Shepherd pipeline as a 6-
 
 <img width="3806" height="1942" alt="image" src="https://github.com/user-attachments/assets/e159528d-1547-4077-96bd-653e81231b98" />
 
-┌────────────────────────────────────────────────────────────┐
-│  Pipeline Dashboard          [Project Filter v]            │
-├─────────┬─────────┬─────────┬─────────┬─────────┬──────────┤
-│ INBOX   │IDEATION │REFINING │ READY   │ QUEUE   │  DONE    │
-│         │         │         │         │         │          │
-│ ┌─────┐ │ ┌─────┐ │ ┌─────┐ │ ┌─────┐ │ ┌─────┐ │ ┌──────┐ │
-│ │ Raw │ │ │Idea │ │ │Spec │ │ │#1   │ │ │[x]  │ │ │14:32 │ │
-│ │ bug │ │ │     │ │ │in   │ │ │Ready│ │ │Done │ │ │Done  │ │
-│ │     │ │ │     │ │ │prog │ │ │     │ │ │     │ │ │      │ │
-│ │[/sh]│ │ │[/sh]│ │ │[/sh]│ │ │[/sh]│ │ │[/sh]│ │ │      │ │
-│ └─────┘ │ └─────┘ │ └─────┘ │ └─────┘ │ └─────┘ │ └──────┘ │
-│ ┌─────┐ │         │         │ ┌─────┐ │ ┌─────┐ │          │
-│ │Link │ │         │         │ │#2   │ │ │[ ]  │ │          │
-│ │     │ │         │         │ │Ready│ │ │Next │ │          │
-│ └─────┘ │         │         │ └─────┘ │ └─────┘ │          │
-├─────────┴─────────┴─────────┴─────────┴─────────┴──────────┤
-│  Promote →                                                 │
-└────────────────────────────────────────────────────────────┘
-```
+
 
 **Key features:**
 - **6-column Kanban** — maps directly to pipeline stages: Inbox → Ideation → Refining → Ready → Queue → Done
