@@ -5,7 +5,7 @@
   │       /  \   O        /)/)  /)/)  /)/)  /)/)  /)/)           │
   │      /----\ /|\╭╮    ( ..) ( ..) ( ..) ( ..) ( ..)           │
   │             / \││    INBOX IDEA  SPEC  QUEUE DONE            │
-  │               ╰╯       ·─────→─────→─────→─────→ ✓          │
+  │               ╰╯       ·─────→─────→─────→─────→ ✓           │
   │                                                              │
   │               S H E P H E R D  /  agentflow                  │
   │         Unified AI agent governance framework                │
