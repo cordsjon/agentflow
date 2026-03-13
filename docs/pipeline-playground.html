@@ -1,0 +1,1595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shepherd Pipeline — Idea to Commit</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2333;
+    --border: #30363d;
+    --border-active: #58a6ff;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --text-bright: #f0f6fc;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --green-dim: #238636;
+    --yellow: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --orange: #f0883e;
+    --cyan: #39d2c0;
+    --pink: #f778ba;
+    --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ── */
+  .header {
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .header h1 {
+    font-size: 20px;
+    color: var(--text-bright);
+    font-weight: 600;
+  }
+  .header .subtitle {
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .header .logo {
+    font-size: 28px;
+    filter: grayscale(0.3);
+  }
+
+  /* ── Example selector ── */
+  .example-bar {
+    padding: 12px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+  }
+  .example-bar label {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+  }
+  .example-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--sans);
+  }
+  .example-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .example-btn.active { border-color: var(--accent); background: rgba(88,166,255,0.1); color: var(--accent); }
+
+  /* ── Main layout ── */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    height: calc(100vh - 105px);
+  }
+
+  /* ── Pipeline rail ── */
+  .pipeline-rail {
+    padding: 20px 32px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .rail-track {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    min-width: max-content;
+  }
+  .stage-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .stage-node:hover .node-circle { transform: scale(1.15); }
+  .stage-node.active .node-circle {
+    box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--accent);
+  }
+  .node-circle {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    border: 2px solid var(--border);
+    background: var(--surface2);
+    transition: all 0.2s;
+    position: relative;
+  }
+  .node-circle.file { border-color: var(--accent); background: rgba(88,166,255,0.1); }
+  .node-circle.command { border-color: var(--purple); background: rgba(188,140,255,0.1); }
+  .node-circle.gate { border-color: var(--yellow); background: rgba(210,153,34,0.1); }
+  .node-circle.loop { border-color: var(--green); background: rgba(63,185,80,0.1); }
+  .node-circle.done { border-color: var(--green); background: rgba(63,185,80,0.15); }
+
+  .node-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    text-align: center;
+    max-width: 72px;
+    line-height: 1.3;
+    font-weight: 500;
+  }
+  .stage-node.active .node-label { color: var(--accent); }
+  .stage-node.visited .node-circle { opacity: 0.5; }
+  .stage-node.visited .node-label { opacity: 0.5; }
+
+  .connector {
+    width: 32px;
+    height: 2px;
+    background: var(--border);
+    flex-shrink: 0;
+    position: relative;
+    top: -10px;
+  }
+  .connector.passed { background: var(--green-dim); }
+  .connector.active-conn { background: var(--accent); }
+  .connector::after {
+    content: '';
+    position: absolute;
+    right: -3px;
+    top: -3px;
+    width: 0;
+    height: 0;
+    border-left: 5px solid var(--border);
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+  }
+  .connector.passed::after { border-left-color: var(--green-dim); }
+  .connector.active-conn::after { border-left-color: var(--accent); }
+
+  /* ── Detail panel ── */
+  .detail-panel {
+    padding: 32px;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-content: start;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    overflow: hidden;
+  }
+  .card.full-width { grid-column: 1 / -1; }
+  .card h3 {
+    font-size: 13px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h3 .badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 500;
+  }
+  .badge-file { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .badge-cmd { background: rgba(188,140,255,0.15); color: var(--purple); }
+  .badge-gate { background: rgba(210,153,34,0.15); color: var(--yellow); }
+  .badge-loop { background: rgba(63,185,80,0.15); color: var(--green); }
+
+  .card-body {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text);
+  }
+  .card-body code {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--cyan);
+  }
+  .card-body pre {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--bg);
+    padding: 14px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 10px 0;
+    line-height: 1.6;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .card-body .highlight { color: var(--accent); font-weight: 500; }
+  .card-body .warn { color: var(--yellow); }
+  .card-body .danger { color: var(--red); }
+  .card-body .ok { color: var(--green); }
+  .card-body .dim { color: var(--text-dim); }
+  .card-body .purple { color: var(--purple); }
+
+  .card-body ul { padding-left: 18px; }
+  .card-body li { margin-bottom: 4px; }
+  .card-body li::marker { color: var(--text-dim); }
+
+  .arrow-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: var(--mono);
+    margin: 8px 0;
+  }
+
+  /* ── Progress bar ── */
+  .progress-bar {
+    padding: 8px 32px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+  }
+  .progress-track {
+    flex: 1;
+    height: 4px;
+    background: var(--surface);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+  .progress-text {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    white-space: nowrap;
+  }
+
+  /* ── Nav buttons ── */
+  .nav-buttons {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+  }
+  .nav-btn {
+    padding: 5px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 12px;
+    cursor: pointer;
+    font-family: var(--mono);
+    transition: all 0.15s;
+  }
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .nav-btn.primary { background: rgba(88,166,255,0.15); border-color: var(--accent); color: var(--accent); }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; padding-left: 0; }
+  .checklist li {
+    padding: 4px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .checklist li::before { content: none; }
+  .check { color: var(--green); font-family: var(--mono); flex-shrink: 0; }
+  .uncheck { color: var(--text-dim); font-family: var(--mono); flex-shrink: 0; }
+  .fail-check { color: var(--red); font-family: var(--mono); flex-shrink: 0; }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .detail-panel { grid-template-columns: 1fr; }
+    .card.full-width { grid-column: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">🐑</div>
+  <div>
+    <h1>Shepherd Pipeline Explorer</h1>
+    <div class="subtitle">Trace a requirement from raw idea to committed code — every stage, gate, and artifact</div>
+  </div>
+  <div style="margin-left:auto;display:flex;gap:8px;">
+    <a href="spec-panel-playground.html" style="font-size:12px;color:var(--accent);text-decoration:none;padding:5px 12px;border:1px solid var(--border);border-radius:5px;font-family:var(--mono);">👥 Spec Panel</a>
+    <a href="business-panel-playground.html" style="font-size:12px;color:var(--orange);text-decoration:none;padding:5px 12px;border:1px solid var(--border);border-radius:5px;font-family:var(--mono);">📊 Business Panel</a>
+  </div>
+</div>
+
+<div class="example-bar">
+  <label>Example:</label>
+  <button class="example-btn active" onclick="loadExample('feature')">Feature</button>
+  <button class="example-btn" onclick="loadExample('bug')">Bug Fix</button>
+  <button class="example-btn" onclick="loadExample('hotfix')">Hotfix</button>
+</div>
+
+<div class="main">
+  <div class="pipeline-rail">
+    <div class="rail-track" id="rail"></div>
+  </div>
+  <div class="detail-panel" id="detail"></div>
+</div>
+
+<div class="progress-bar">
+  <span class="progress-text" id="progress-label">Stage 1 / 13</span>
+  <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+  <div class="nav-buttons">
+    <button class="nav-btn" id="btn-prev" onclick="navigate(-1)">&larr; Prev</button>
+    <button class="nav-btn primary" id="btn-next" onclick="navigate(1)">Next &rarr;</button>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// DATA: Three complete example journeys
+// ─────────────────────────────────────────────
+
+const EXAMPLES = {
+
+// ═══════════════ FEATURE EXAMPLE ═══════════════
+feature: {
+  title: "Metric Print Sizes for EU Market",
+  stages: [
+    // 0 ── INBOX
+    {
+      id: "inbox", label: "INBOX", icon: "📥", type: "file",
+      summary: "A raw idea lands in the inbox",
+      cards: [
+        { title: "What arrives", badge: "INBOX.md", badgeType: "file", full: true, body: `
+<pre>## Inbox
+
+- EU customers keep asking for metric print sizes (A4, A5, 10×15cm).
+  Saw 3 Etsy reviews this week mentioning it. Currently we only
+  export imperial (4×6, 5×7, 8×10). Could we add ISO + metric photo
+  sizes? Link to Etsy review: [screenshot in Slack #product]
+
+  Also — make sure contrast checking still works at different DPIs.
+  Some metric sizes have different aspect ratios than imperial.</pre>
+<p class="dim">This is the raw dump — unstructured, conversational, possibly contains multiple concerns mixed together. The inbox accepts anything: ideas, links, screenshots, bug reports, constraints.</p>
+        `},
+        { title: "Rules at this stage", body: `
+<ul>
+  <li>Anyone can write to INBOX — no format required</li>
+  <li>Items stay here until <code>/triage</code> processes them</li>
+  <li>Never partially process — all items in, all items out</li>
+  <li>No implementation happens from INBOX — ever</li>
+</ul>
+        `},
+        { title: "What happens next", body: `
+<p>The <span class="purple">/triage</span> command reads every bullet, classifies it, and routes it to the correct destination. This inbox entry contains two concerns:</p>
+<ol>
+  <li>A <span class="highlight">feature request</span> (metric sizes)</li>
+  <li>A <span class="warn">constraint clarification</span> (contrast at different DPIs)</li>
+</ol>
+        `}
+      ]
+    },
+
+    // 1 ── /triage
+    {
+      id: "triage", label: "/triage", icon: "🏷", type: "command",
+      summary: "Classify and route to the correct pipeline lane",
+      cards: [
+        { title: "Triage output", badge: "/triage", badgeType: "cmd", full: true, body: `
+<pre>Triaged 2 items:
+  → BACKLOG#Ideation: "Metric print sizes (ISO + metric photo)" [feature]
+  → CLAUDE.md §2 notes: "Contrast checking must validate at all
+    export DPIs, not just 96" [constraint]
+
+INBOX.md cleared: <span class="ok">Empty — all items triaged.</span></pre>
+<p>The triage skill split the single inbox dump into two separate concerns and routed each to its correct destination. The constraint went directly into the project's rules file — it doesn't need a backlog entry.</p>
+        `},
+        { title: "Classification rules", body: `
+<ul>
+  <li><span class="highlight">Feature / enhancement</span> → BACKLOG#Ideation</li>
+  <li><span class="warn">Bug / regression</span> → BACKLOG#Ideation with <code>[bug]</code> tag</li>
+  <li><span class="purple">Constraint / context</span> → CLAUDE.md or requirements doc</li>
+  <li><span class="danger">Hotfix</span> → Can fast-track directly to TODO-Today</li>
+  <li><span class="dim">Duplicate</span> → Noted and discarded</li>
+</ul>
+        `},
+        { title: "Artifact created", body: `
+<p>New entry appended to <code>BACKLOG.md#Ideation</code>:</p>
+<pre>- <strong>Metric print sizes (ISO + metric photo)</strong>
+    (triaged from INBOX 2026-03-12)
+  - EU market demand — 3 Etsy reviews requesting
+    A4/A5/10×15cm exports
+  - <strong>Status:</strong> Idea only. Needs spec before Refining.
+  - <strong>Next:</strong> /sc:brainstorm to explore scope,
+    format mapping, DPI implications</pre>
+        `}
+      ]
+    },
+
+    // 2 ── BACKLOG: Ideation
+    {
+      id: "ideation", label: "Ideation", icon: "💡", type: "file",
+      summary: "Raw idea sitting in the backlog, waiting for exploration",
+      cards: [
+        { title: "Backlog state", badge: "BACKLOG.md#Ideation", badgeType: "file", full: true, body: `
+<pre>## Ideation
+
+- <strong>Metric print sizes (ISO + metric photo)</strong>
+    (triaged from INBOX 2026-03-12)
+  - EU market demand — Etsy reviews requesting A4/A5/10×15cm
+  - Status: Idea only. Needs spec before Refining.
+  - Next: /sc:brainstorm to explore scope
+
+- <span class="dim">PDF export engine [feature] — waiting on dep analysis</span>
+- <span class="dim">Batch tagging performance [perf] — needs profiling data</span></pre>
+<p>The ideation lane holds raw ideas alongside other items at various stages of readiness. Items here have no spec, no user stories, no acceptance criteria yet.</p>
+        `},
+        { title: "Graduation criteria", body: `
+<p>To move from Ideation → Refining, the item needs:</p>
+<ul>
+  <li><span class="check">[&nbsp;]</span> <code>/sc:brainstorm</code> output exists — deep exploration of requirements, edge cases, and alternatives</li>
+  <li>The brainstorm produces a requirements document that becomes the foundation for user stories</li>
+</ul>
+<p class="dim">No code is written during Ideation. This is pure discovery.</p>
+        `},
+        { title: "Time in stage", body: `
+<p>Items can sit in Ideation for days or weeks. There's no SLA — this is the <span class="highlight">human-driven outer loop</span>. The user decides when to invest brainstorming time on an idea.</p>
+<p>The trigger to move forward is usually: <em>"I want to build this next"</em> → run <code>/sc:brainstorm</code>.</p>
+        `}
+      ]
+    },
+
+    // 3 ── /sc:brainstorm
+    {
+      id: "brainstorm", label: "/brainstorm", icon: "🧠", type: "command",
+      summary: "Deep Socratic exploration of the requirement",
+      cards: [
+        { title: "Brainstorm session (abbreviated)", badge: "/sc:brainstorm", badgeType: "cmd", full: true, body: `
+<pre><span class="purple">───── Brainstorm: Metric Print Sizes ─────</span>
+
+<span class="highlight">Q1: Who is the primary user?</span>
+→ Etsy sellers creating contrast cards for EU/UK market.
+  They need to list metric sizes in product descriptions.
+
+<span class="highlight">Q2: What metric systems exist?</span>
+→ Three categories identified:
+  • ISO paper: A6 (105×148mm), A5 (148×210mm), A4 (210×297mm)
+  • Metric photo: 10×15cm, 13×18cm, 20×25cm
+  • Existing imperial: 4×6", 5×7", 8×10"
+
+<span class="highlight">Q3: How do we store dimensions internally?</span>
+→ All sizes stored as inches (96 DPI). Metric converted on input.
+  Display unit is per-project preference (imperial/metric/both).
+
+<span class="highlight">Q4: Impact on existing features?</span>
+→ Contrast checking: works on color values, DPI-independent ✓
+→ SVG viewBox: always 0 0 100 100, scaled at export ✓
+→ Export pipeline: needs new size entries + aspect ratio calc
+→ UI: size picker dropdown needs grouping by measurement system
+
+<span class="highlight">Q5: What could go wrong?</span>
+→ Aspect ratio mismatch: A4 is 1:√2, imperial is 2:3/5:7
+→ Need intelligent cropping or padding strategy
+→ Font license check still applies at all sizes</pre>
+        `},
+        { title: "Output artifact", body: `
+<p>The brainstorm produces <code>requirements/METRIC_SIZES.md</code> — a structured requirements document with:</p>
+<ul>
+  <li>Problem statement & user need</li>
+  <li>Proposed solution with alternatives considered</li>
+  <li>Edge cases and risks identified</li>
+  <li>Dependencies on existing systems</li>
+</ul>
+<p>This document becomes the input for the <span class="highlight">Refining</span> stage.</p>
+        `},
+        { title: "Item moves to Refining", body: `
+<p>After brainstorm completes, the backlog item graduates:</p>
+<pre>## Refining
+
+- <strong>Metric print sizes (ISO + metric photo)</strong>
+  - Spec: requirements/METRIC_SIZES.md
+  - <strong>Next:</strong> Write User Stories + AC, then
+    /sc:business-panel → /sc:spec-panel for review</pre>
+        `}
+      ]
+    },
+
+    // 4 ── BACKLOG: Refining
+    {
+      id: "refining", label: "Refining", icon: "🔧", type: "file",
+      summary: "Spec exists — now write User Stories and Acceptance Criteria",
+      cards: [
+        { title: "User Stories being written", badge: "requirements/METRIC_SIZES.md", badgeType: "file", full: true, body: `
+<pre><span class="highlight">## User Stories</span>
+
+<strong>US-MS-1:</strong> As an Etsy seller, I want to select metric
+print sizes (A4, A5, A6, 10×15cm, 13×18cm, 20×25cm) when
+creating a project, so that I can list accurate dimensions
+for EU customers.
+
+  <strong>AC-1.1:</strong> Size picker shows 3 groups: Imperial,
+         Metric Photo, Metric ISO
+  <strong>AC-1.2:</strong> Per-project "measurement system" setting
+         filters which groups appear
+  <strong>AC-1.3:</strong> All sizes stored internally as inches (96 DPI)
+  <strong>AC-1.4:</strong> Display converts to user's preferred unit
+
+<strong>US-MS-2:</strong> As a seller, I want exported SVGs at metric
+sizes to maintain correct aspect ratios, so that prints
+aren't distorted.
+
+  <strong>AC-2.1:</strong> A-series uses 1:√2 aspect ratio
+  <strong>AC-2.2:</strong> Metric photo uses closest standard ratio
+  <strong>AC-2.3:</strong> Content is center-cropped, not stretched
+  <strong>AC-2.4:</strong> viewBox remains "0 0 100 100", scaling
+         applied at export
+
+<strong>US-MS-3:</strong> As a seller, I want contrast checks to pass
+at all metric sizes, so that accessibility is maintained.
+
+  <strong>AC-3.1:</strong> Contrast ratios validated per age-range tier
+  <strong>AC-3.2:</strong> Background luminance checks apply equally
+  <strong>AC-3.3:</strong> No size-specific contrast bypass</pre>
+        `},
+        { title: "What's checked during refining", body: `
+<ul>
+  <li><span class="check">[✓]</span> User Stories follow "As a [role]..." format</li>
+  <li><span class="check">[✓]</span> Each US has testable Acceptance Criteria</li>
+  <li><span class="check">[✓]</span> Spec document exists with functional requirements</li>
+  <li><span class="uncheck">[ ]</span> Business panel reviewed <span class="dim">← strategic analysis first</span></li>
+  <li><span class="uncheck">[ ]</span> Spec panel score ≥ 7.0 <span class="dim">← not yet reviewed</span></li>
+  <li><span class="check">[✓]</span> Architecture decided (extends existing size system)</li>
+  <li><span class="check">[✓]</span> Dependencies identified (export pipeline, UI picker)</li>
+  <li><span class="check">[✓]</span> Test strategy: 3 unit test files + 1 integration</li>
+</ul>
+<p class="dim">Two missing items — business panel strategic review runs first, then spec panel scores the technical quality. Both must pass before Ready.</p>
+        `},
+        { title: "Clarity check", body: `
+<p>Before the spec panel, <code>/requirements-clarity</code> catches ambiguities:</p>
+<pre><span class="warn">⚠ Ambiguity found:</span> AC-2.2 says "closest standard
+ratio" — which standard? Need explicit mapping table.
+
+<span class="warn">⚠ Missing:</span> What happens when user switches
+measurement system on an existing project with exports?
+
+<span class="ok">✓ Clear:</span> Internal storage format (inches, 96 DPI)
+<span class="ok">✓ Clear:</span> Contrast rules apply uniformly</pre>
+<p>These are fixed in the spec before proceeding to the panel.</p>
+        `}
+      ]
+    },
+
+    // 5 ── /sc:business-panel
+    {
+      id: "biz-panel", label: "Biz Panel", icon: "📊", type: "gate",
+      summary: "Strategic analysis by 9 business thought leaders — advisory, no pass/fail",
+      cards: [
+        { title: "Panel session", badge: "/sc:business-panel", badgeType: "cmd", full: true, body: `
+<pre><span class="purple">═══ BUSINESS PANEL — Metric Print Sizes ═══</span>
+
+<span class="highlight">Michael Porter (Competitive Strategy):</span>
+"This is a smart extension — it expands addressable market
+to EU without changing the competitive position. The contrast
+checking moat applies equally to metric sizes. No new Five
+Forces pressure introduced. <span class="ok">Low strategic risk.</span>"
+
+<span class="highlight">Clayton Christensen (Jobs-to-be-Done):</span>
+"The job stays the same: 'help me create professional
+products for my Etsy shop.' Metric sizes are sustaining
+innovation — better serving existing customers, not
+disrupting a new market. That's correct here — EU sellers
+are the SAME customer with the SAME job, just different
+paper standards."
+
+<span class="highlight">Nassim Taleb (Risk & Antifragility):</span>
+"Good — this <span class="ok">diversifies the customer base</span> geographically.
+If the US Etsy market contracts, EU revenue provides a buffer.
+Metric sizes are <span class="ok">antifragile</span>: as more sellers go global,
+demand for metric support increases. Low downside, convex
+upside. I approve."
+
+<span class="highlight">Seth Godin (Marketing):</span>
+"This makes your product more remarkable for EU sellers
+specifically. 'The only children's printable tool with
+metric sizes AND contrast checking' — that's a Purple Cow
+for the EU Etsy community. <span class="ok">Small tribe, specific value.</span>"</pre>
+        `},
+        { title: "Panel synthesis", body: `
+<p><span class="ok">All experts align:</span> metric sizes is a low-risk market expansion that strengthens existing positioning.</p>
+<pre><span class="ok">AGREED:</span>
+  • Expands addressable market without diluting focus
+  • Same job-to-be-done — sustaining innovation (correct)
+  • Geographically diversifies revenue (antifragile)
+  • Creates EU-specific Purple Cow for marketing
+
+<span class="purple">RECOMMENDATIONS:</span>
+  1. Position metric sizes as "EU market ready" in messaging
+  2. Consider Teachers Pay Teachers as next channel (EU teachers)
+  3. Defer B-series (Japanese market) — separate initiative
+
+<span class="dim">Advisory only — no pass/fail score.
+Proceed to Spec Panel for technical quality gate.</span></pre>
+        `},
+        { title: "Why business panel comes first", body: `
+<p>The business panel runs <strong>before</strong> the spec panel because:</p>
+<ul>
+  <li><span class="highlight">Strategic validation first</span> — no point perfecting a spec for a feature the business shouldn't build</li>
+  <li><span class="highlight">Advisory, not a gate</span> — it can't block, but it can redirect ("this is the wrong feature to build next")</li>
+  <li><span class="highlight">Informs the spec review</span> — business panel insights help spec panel experts evaluate the right things</li>
+</ul>
+<p class="dim">If the business panel had flagged a strategic problem (e.g., "this cannibalizes your existing sales"), the team would pause before investing in spec panel review.</p>
+<p style="margin-top:8px;"><a href="business-panel-playground.html" style="color:var(--accent);">→ Explore the full Business Panel playground</a></p>
+        `}
+      ]
+    },
+
+    // 6 ── /sc:spec-panel
+    {
+      id: "spec-panel", label: "Spec Panel", icon: "👥", type: "gate",
+      summary: "Multi-expert review — score must reach 7.0 to graduate",
+      cards: [
+        { title: "Panel review", badge: "Gate: score ≥ 7.0", badgeType: "gate", full: true, body: `
+<pre><span class="purple">═══ SPEC PANEL — Metric Print Sizes ═══</span>
+
+<span class="highlight">Expert: Requirements Analyst</span>
+Score: 8/10
+"User stories are well-structured. AC-2.3 center-crop
+strategy is clear. Suggest adding AC for batch export
+with mixed metric/imperial sizes."
+
+<span class="highlight">Expert: Domain Specialist (Print/Etsy)</span>
+Score: 7/10
+"Metric photo sizes correct for EU market. Missing:
+some EU sellers also need B-series (B5, B4) for
+Japanese market cross-listing. Recommend deferring
+B-series to follow-up."
+
+<span class="highlight">Expert: Security/Safety Reviewer</span>
+Score: 8/10
+"Contrast validation applies uniformly — good. Font
+license check unaffected. No new attack surface."
+
+<span class="highlight">Expert: Architecture Reviewer</span>
+Score: 7/10
+"Extends existing PrintSize enum cleanly. Conversion
+layer is simple (multiply/divide by 25.4). Recommend:
+keep conversion functions pure, no side effects."
+
+<span class="ok">═══ COMPOSITE SCORE: 7.5 / 10  ✓ PASSES ═══</span></pre>
+        `},
+        { title: "Gate decision", body: `
+<p>Score <span class="ok">7.5 ≥ 7.0</span> — the item graduates to <strong>Ready</strong>.</p>
+<p>If the score were below 7.0, the item would stay in Refining with the panel's feedback. The team would address concerns and re-submit.</p>
+<p class="dim">The spec panel is not optional. It's the quality gate that prevents half-baked features from entering the build queue.</p>
+        `},
+        { title: "DOR verification", body: `
+<p>With both panels passed, the full DOR checklist is now complete:</p>
+<ul class="checklist">
+  <li><span class="check">✓</span> User Stories defined (3 US)</li>
+  <li><span class="check">✓</span> Acceptance Criteria written (10 AC total)</li>
+  <li><span class="check">✓</span> Spec document exists</li>
+  <li><span class="check">✓</span> Business panel reviewed (strategic alignment confirmed)</li>
+  <li><span class="check">✓</span> Spec panel score ≥ 7.0 (7.5)</li>
+  <li><span class="check">✓</span> Architecture decided</li>
+  <li><span class="check">✓</span> Dependencies identified</li>
+  <li><span class="check">✓</span> Test strategy known</li>
+  <li><span class="check">✓</span> No constraint violations</li>
+  <li><span class="check">✓</span> Estimated size: M (4-8 tasks)</li>
+</ul>
+        `}
+      ]
+    },
+
+    // 6 ── BACKLOG: Ready
+    {
+      id: "ready", label: "Ready", icon: "✅", type: "file",
+      summary: "Fully specified — waiting to be scheduled into the build queue",
+      cards: [
+        { title: "Ready lane", badge: "BACKLOG.md#Ready", badgeType: "file", body: `
+<pre>## Ready
+
+- <strong>Metric print sizes (ISO + metric photo)</strong>
+  - Spec: requirements/METRIC_SIZES.md
+  - Biz Panel: ✓ strategic alignment confirmed
+  - Spec Panel: 7.5/10 ✓
+  - Size: M (estimated 6 tasks)
+  - DOR: ✓ all criteria met
+  - <strong>Next:</strong> /sc:workflow to generate queue</pre>
+<p class="dim">Items in Ready are fully specified and reviewed by both panels. They wait here until the human decides to schedule them.</p>
+        `},
+        { title: "What 'Ready' means", body: `
+<p>A Ready item has passed every gate:</p>
+<ul>
+  <li>Raw idea → explored via brainstorm</li>
+  <li>Exploration → crystallized into spec + user stories</li>
+  <li>Spec → strategic review by business panel (advisory)</li>
+  <li>Spec → technical review by spec panel (score ≥ 7.0)</li>
+  <li>DOR checklist → 100% complete</li>
+</ul>
+<p>The only remaining step is <span class="purple">/workflow</span> — breaking it into atomic, executable tasks for the autopilot.</p>
+        `}
+      ]
+    },
+
+    // 7 ── /workflow
+    {
+      id: "workflow", label: "/workflow", icon: "📋", type: "command",
+      summary: "Decompose into atomic tasks with a quality tail",
+      cards: [
+        { title: "Generated queue", badge: "/sc:workflow", badgeType: "cmd", full: true, body: `
+<pre><span class="purple">Converted:</span> Metric print sizes (ISO + metric photo)
+<span class="purple">Tasks added to TODO-Today:</span> 6
+<span class="purple">Quality tail:</span> ✓ appended
+<span class="purple">DOR:</span> ✓ all tasks passed
+
+<span class="highlight">── TODO-Today.md ──</span>
+
+> <strong>>>> NEXT</strong>
+
+- [ ] <strong>[US-MS-1.1] Add 6 metric sizes to PrintSize enum</strong>
+  <code>/sc:implement "Add A6, A5, A4, 10x15, 13x18, 20x25 to PrintSize"</code>
+  <em>Context: app/models/print_size.py, store as inches (96 DPI)</em>
+
+- [ ] <strong>[US-MS-1.2] Measurement system filter in size picker UI</strong>
+  <code>/sc:implement "Per-project filter: imperial/metric/both"</code>
+  <em>Context: templates/project_settings.html, static/js/size-picker.js</em>
+
+- [ ] <strong>[US-MS-2.1] Aspect ratio handling for A-series export</strong>
+  <code>/sc:implement "1:√2 ratio for ISO sizes, center-crop"</code>
+  <em>Context: app/services/export_service.py, viewBox stays 0 0 100 100</em>
+
+- [ ] <strong>[US-MS-2.2] Metric photo ratio mapping</strong>
+  <code>/sc:implement "Map 10x15→2:3, 13x18→13:18, 20x25→4:5"</code>
+  <em>Context: app/services/export_service.py</em>
+
+- [ ] <strong>[US-MS-3.1] Contrast validation for all 9 sizes</strong>
+  <code>/sc:test "Verify contrast tiers apply to metric sizes"</code>
+  <em>Context: app/services/validation_service.py, age-range tiers</em>
+
+- [ ] <strong>Quality tail: greenlight + cleanup</strong>
+  <code>/sc:analyze "app/models/ app/services/ static/js/" --focus quality</code>
+  <em>Context: greenlight --all must be 100% green, no Medium+ findings</em></pre>
+        `},
+        { title: "Queue rules", body: `
+<ul>
+  <li>Each task maps to one User Story or AC</li>
+  <li>Each task results in one atomic commit</li>
+  <li>Maximum 10 tasks per batch</li>
+  <li><span class="warn">Last task is ALWAYS a quality tail</span> — this is not optional</li>
+  <li>Queue order = optimal execution sequence</li>
+  <li>First unchecked item = next task for autopilot</li>
+</ul>
+        `}
+      ]
+    },
+
+    // 8 ── TODO-Today (queued)
+    {
+      id: "queued", label: "TODO-Today", icon: "📝", type: "file",
+      summary: "Tasks are queued — autopilot reads the first unchecked item",
+      cards: [
+        { title: "Queue state before autopilot", badge: "TODO-Today.md", badgeType: "file", body: `
+<pre>> <strong>>>> NEXT</strong>
+
+<span class="highlight">- [ ]</span> <strong>[US-MS-1.1] Add 6 metric sizes</strong>  ← first
+- [ ] [US-MS-1.2] Measurement system filter
+- [ ] [US-MS-2.1] A-series aspect ratio
+- [ ] [US-MS-2.2] Metric photo ratio mapping
+- [ ] [US-MS-3.1] Contrast validation
+- [ ] Quality tail: greenlight + cleanup</pre>
+<p>The autopilot will pick up <strong>[US-MS-1.1]</strong> as the first task. Each task is independent enough for one atomic commit.</p>
+        `},
+        { title: "What triggers execution", body: `
+<p>The <code>/autopilot</code> command starts the inner loop. Before it begins:</p>
+<ol>
+  <li>Check <code>.autopilot</code> semaphore — must contain <code>run</code></li>
+  <li>Load <code>.claude/memory.md</code> — prior session context</li>
+  <li>Internalize <code>DOD.md</code> and <code>DOR.md</code> quality gates</li>
+</ol>
+<p class="dim">The semaphore is the human's kill switch. Writing "pause" stops the loop between tasks — never mid-task.</p>
+        `}
+      ]
+    },
+
+    // 9 ── Autopilot: Inner Loop
+    {
+      id: "autopilot", label: "Autopilot", icon: "🤖", type: "loop",
+      summary: "The 14-step inner loop executes each task autonomously",
+      cards: [
+        { title: "Inner loop — step by step", badge: "14 steps", badgeType: "loop", full: true, body: `
+<pre><span class="ok">Step 1</span>  Semaphore check    .autopilot = "run" ✓
+<span class="ok">Step 2</span>  Context load        memory-bank restored ✓
+<span class="ok">Step 3</span>  Read task           [US-MS-1.1] Add 6 metric sizes
+<span class="ok">Step 4</span>  ROUTE phase         @claude assigned (capability score: 0.92)
+                         No stall detected
+                         Context: app/models/print_size.py
+<span class="ok">Step 5</span>  DOR verify          ✓ US defined, AC testable, deps clear
+<span class="highlight">Step 6</span>  <strong>TDD — write test first</strong>
+         → tests/test_metric_sizes.py created
+         → 6 test cases: one per new size
+         → Tests fail (sizes don't exist yet) ✓
+<span class="highlight">Step 7</span>  <strong>Implementation</strong>
+         → PrintSize enum extended with 6 entries
+         → Conversion functions added (mm→inches)
+         → Tests now pass ✓
+<span class="ok">Step 8</span>  Verification        AC-1.1 through AC-1.4 checked ✓
+<span class="ok">Step 9</span>  Code review         Self-review: no issues found
+<span class="warn">Step 10</span> Cleanup sub-loop    → See next card
+<span class="ok">Step 11</span> Commit              "Add 6 metric print sizes (A6–A4,
+                         10×15–20×25cm) for EU market support"
+<span class="dim">Step 12</span> Branch finishing    (skipped — working on main)
+<span class="ok">Step 13</span> Move to DONE        CUT → PASTE with 14:23 timestamp
+<span class="ok">Step 14</span> Context save        HANDOVER.md updated</pre>
+        `},
+        { title: "Step 6 — TDD in detail", body: `
+<p>The test is written <strong>before</strong> the implementation:</p>
+<pre>def test_a4_size_in_inches():
+    size = PrintSize.A4
+    assert size.width_inches == pytest.approx(8.27)
+    assert size.height_inches == pytest.approx(11.69)
+    assert size.aspect_ratio == pytest.approx(1/1.4142)
+
+def test_metric_photo_10x15():
+    size = PrintSize.METRIC_10x15
+    assert size.width_inches == pytest.approx(3.94)
+    assert size.height_inches == pytest.approx(5.91)</pre>
+<p class="dim">These tests fail immediately (the enum entries don't exist). Implementation makes them pass.</p>
+        `}
+      ]
+    },
+
+    // 10 ── Cleanup Sub-Loop
+    {
+      id: "cleanup", label: "Quality Gate", icon: "🔍", type: "gate",
+      summary: "Greenlight must pass — Medium+ findings halt the autopilot",
+      cards: [
+        { title: "Cleanup sub-loop execution", badge: "Quality Gate", badgeType: "gate", full: true, body: `
+<pre><span class="highlight">── Run 1: greenlight --all ──</span>
+
+<span class="ok">✓</span> All tests pass (214/214)
+<span class="ok">✓</span> No import errors
+<span class="ok">✓</span> No constraint violations
+<span class="warn">⚠</span> Low finding: unused import in test_metric_sizes.py
+   → <code>import json</code> not referenced
+
+<span class="highlight">── Fix Low finding ──</span>
+Removed unused import.
+
+<span class="highlight">── Run 2: greenlight --all ──</span>
+
+<span class="ok">✓</span> All tests pass (214/214)
+<span class="ok">✓</span> No import errors
+<span class="ok">✓</span> No constraint violations
+<span class="ok">✓</span> No findings
+
+<span class="ok">═══ GREENLIGHT: ALL CLEAR ═══</span></pre>
+        `},
+        { title: "What if it fails?", body: `
+<p>The sub-loop has strict escalation rules:</p>
+<ul>
+  <li><span class="ok">Low findings</span> — auto-fixed, re-run greenlight, loop continues</li>
+  <li><span class="warn">Medium findings</span> — autopilot writes summary to <code>.claude-action</code>, writes <code>"pause"</code> to <code>.autopilot</code>, <strong>STOPS</strong></li>
+  <li><span class="danger">High findings</span> — same as Medium: full stop, human review required</li>
+</ul>
+<p><span class="danger">Medium+ findings are NEVER downgraded or bypassed.</span> This is the primary safety mechanism preventing quality debt from accumulating unreviewed.</p>
+        `},
+        { title: "For M+ sized tasks", body: `
+<p>Tasks estimated at Medium or Large also get a <code>/production-code-audit</code> — a deep scan covering:</p>
+<ul>
+  <li>Security vulnerabilities (OWASP top 10)</li>
+  <li>Performance hotspots</li>
+  <li>Architecture violations</li>
+  <li>All findings classified via <span class="highlight">FIPD taxonomy</span>: Fix / Investigate / Plan / Decide</li>
+</ul>
+        `}
+      ]
+    },
+
+    // 11 ── Commit
+    {
+      id: "commit", label: "Commit", icon: "💾", type: "loop",
+      summary: "Atomic commit per DOD — descriptive message, clean status",
+      cards: [
+        { title: "Commit details", badge: "git commit", badgeType: "loop", body: `
+<pre><span class="purple">$ git add app/models/print_size.py \
+        tests/test_metric_sizes.py</span>
+
+<span class="purple">$ git commit -m</span> "Add 6 metric print sizes
+(A6–A4, 10×15–20×25cm) for EU market support
+
+Extends PrintSize enum with ISO paper (A6, A5, A4) and
+metric photo (10×15cm, 13×18cm, 20×25cm) sizes. All
+stored as inches internally (96 DPI) per existing
+convention. Conversion functions are pure with no
+side effects per spec panel recommendation.
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+<span class="ok">[main a3f7c21] Add 6 metric print sizes...</span>
+ 2 files changed, 87 insertions(+)</pre>
+        `},
+        { title: "DOD checklist at commit", body: `
+<ul class="checklist">
+  <li><span class="check">✓</span> All new code has tests</li>
+  <li><span class="check">✓</span> Tests pass — greenlight 100% green</li>
+  <li><span class="check">✓</span> No new test failures</li>
+  <li><span class="check">✓</span> Quality audit clean — no findings</li>
+  <li><span class="check">✓</span> Service-first — logic in model layer</li>
+  <li><span class="check">✓</span> No constraint violations</li>
+  <li><span class="check">✓</span> Clean commit — atomic scope</li>
+  <li><span class="check">✓</span> No secrets committed</li>
+  <li><span class="check">✓</span> Pre-commit hooks pass</li>
+  <li><span class="check">✓</span> Application starts</li>
+  <li><span class="check">✓</span> Existing functionality intact</li>
+  <li><span class="check">✓</span> Verification pass with evidence</li>
+</ul>
+        `}
+      ]
+    },
+
+    // 12 ── DONE-Today
+    {
+      id: "done", label: "DONE-Today", icon: "🏁", type: "done",
+      summary: "Task completed — CUT from TODO, PASTE to DONE with timestamp",
+      cards: [
+        { title: "Lifecycle complete", badge: "DONE-Today.md", badgeType: "file", full: true, body: `
+<pre>## Completed — 2026-03-12
+
+<span class="ok">- [x] <strong>[US-MS-1.1] Add 6 metric sizes to PrintSize enum</strong>  14:23</span>
+  - AC: ✓ A6, A5, A4, 10×15, 13×18, 20×25 added
+  - Test: tests/test_metric_sizes.py (6 cases, all pass)
+  - Commit: a3f7c21</pre>
+<p>The item has been <strong>CUT</strong> from TODO-Today.md and <strong>PASTED</strong> here with a <code>14:23</code> timestamp. It never exists in both files simultaneously.</p>
+        `},
+        { title: "What happens next", body: `
+<p>The autopilot <strong>loops back to Step 1</strong> — checks the semaphore, reads the next unchecked item from TODO-Today.md:</p>
+<pre><span class="highlight">- [ ]</span> <strong>[US-MS-1.2] Measurement system filter</strong>  ← next
+- [ ] [US-MS-2.1] A-series aspect ratio
+- [ ] [US-MS-2.2] Metric photo ratio mapping
+- [ ] [US-MS-3.1] Contrast validation
+- [ ] Quality tail: greenlight + cleanup</pre>
+<p>This continues until all tasks are checked or the semaphore says <code>"pause"</code>.</p>
+        `},
+        { title: "Full journey summary", body: `
+<p>This idea traveled through <strong>14 stages</strong>:</p>
+<ol>
+  <li><span class="dim">INBOX</span> — raw dump</li>
+  <li><span class="purple">/triage</span> — classified as feature</li>
+  <li><span class="dim">Ideation</span> — sat in backlog</li>
+  <li><span class="purple">/brainstorm</span> — deep exploration</li>
+  <li><span class="dim">Refining</span> — US + AC written</li>
+  <li><span class="warn">Biz Panel</span> — strategic review (advisory)</li>
+  <li><span class="warn">Spec Panel</span> — technical review (7.5/10)</li>
+  <li><span class="dim">Ready</span> — DOR passed</li>
+  <li><span class="purple">/workflow</span> — decomposed to 6 tasks</li>
+  <li><span class="dim">TODO-Today</span> — queued for execution</li>
+  <li><span class="ok">Autopilot</span> — 14-step inner loop</li>
+  <li><span class="warn">Quality Gate</span> — greenlight clean</li>
+  <li><span class="ok">Commit</span> — atomic, DOD-compliant</li>
+  <li><span class="ok">DONE</span> — timestamped completion</li>
+</ol>
+        `}
+      ]
+    }
+  ]
+},
+
+// ═══════════════ BUG EXAMPLE ═══════════════
+bug: {
+  title: "Contrast Check Skipped on Toddler Tier",
+  stages: [
+    {
+      id: "inbox", label: "INBOX", icon: "📥", type: "file",
+      summary: "Bug report lands in inbox",
+      cards: [
+        { title: "What arrives", badge: "INBOX.md", badgeType: "file", full: true, body: `
+<pre>## Inbox
+
+- Found a bug: when I set age range to "toddler" and use
+  colors with contrast ratio 4.2:1 (below the 4.5:1
+  requirement), the export still succeeds. It should be
+  blocked. Happened on collection "Farm Animals" — the
+  yellow-on-cream cards went through.
+
+  This feels like the contrast check might be using the
+  wrong threshold for toddler tier.</pre>
+        `},
+        { title: "Classification", body: `
+<p>This is clearly a <span class="danger">bug</span> — a safety check is being bypassed. The contrast requirement for toddler tier is <strong>4.5:1</strong> (per CLAUDE.md §2), but exports are succeeding at 4.2:1.</p>
+<p>This could be a <span class="danger">hotfix</span> candidate if it's actively shipping broken products.</p>
+        `}
+      ]
+    },
+    {
+      id: "triage", label: "/triage", icon: "🏷", type: "command",
+      summary: "Classified as [bug] — routed to Ideation",
+      cards: [
+        { title: "Triage output", badge: "/triage", badgeType: "cmd", full: true, body: `
+<pre>Triaged 1 item:
+  → BACKLOG#Ideation: "Contrast check uses wrong threshold
+    for toddler tier" <span class="danger">[bug]</span>
+
+INBOX.md cleared: <span class="ok">Empty — all items triaged.</span></pre>
+<p>Classified as <code>[bug]</code> — not hotfix, because it's not blocking development. Products may have shipped incorrectly, but the system itself is running.</p>
+        `}
+      ]
+    },
+    {
+      id: "ideation", label: "Ideation", icon: "💡", type: "file",
+      summary: "Bug documented with reproduction details",
+      cards: [
+        { title: "Backlog entry", badge: "BACKLOG.md#Ideation", badgeType: "file", full: true, body: `
+<pre>- <strong>[bug] Contrast check uses wrong threshold
+  for toddler tier</strong> (triaged 2026-03-12)
+  - Toddler tier requires 4.5:1 but export
+    succeeds at 4.2:1
+  - Repro: Farm Animals collection, yellow-on-cream
+  - <strong>Status:</strong> Bug — needs root cause analysis
+  - <strong>Next:</strong> Investigate ValidationService contrast
+    logic — may be using infant tier (7:1) fallback
+    incorrectly or toddler threshold hardcoded wrong</pre>
+        `}
+      ]
+    },
+    {
+      id: "brainstorm", label: "Root Cause", icon: "🔬", type: "command",
+      summary: "Bug DOR-lite: root cause identified, fix plan written",
+      cards: [
+        { title: "Root cause analysis", badge: "Bug DOR-lite", badgeType: "cmd", full: true, body: `
+<pre><span class="highlight">Root Cause:</span>
+In app/services/validation_service.py:142, the contrast
+threshold lookup uses a dict that maps age ranges to
+ratios. The "toddler" key maps to <span class="danger">7.0</span> instead of
+<span class="ok">4.5</span>.
+
+This means toddler tier is actually checking at the
+STRICTER infant level (7:1), but the bug report says
+4.2:1 passed — which means the check isn't running at
+all for toddler.
+
+Deeper investigation: line 158 has an early return that
+skips validation when age_range not in the dict keys.
+The key is "toddler" but the dict uses "toddler_range".
+<span class="danger">Key mismatch → validation silently skipped.</span>
+
+<span class="highlight">Fix Plan (2 steps):</span>
+1. Fix dict key: "toddler_range" → "toddler"
+2. Add regression test with 4.2:1 ratio on toddler tier
+
+<span class="highlight">Regression Test:</span>
+tests/test_contrast_validation.py::test_toddler_threshold</pre>
+        `},
+        { title: "Bug DOR-lite checklist", body: `
+<ul class="checklist">
+  <li><span class="check">✓</span> Root cause identified — key mismatch in contrast dict</li>
+  <li><span class="check">✓</span> Fix plan — 2 concrete steps</li>
+  <li><span class="check">✓</span> Regression test named</li>
+  <li><span class="check">✓</span> No constraint violations</li>
+  <li><span class="check">✓</span> Estimate: XS (1 task)</li>
+</ul>
+<p class="dim">Bug DOR-lite is lighter than full DOR — no US template or spec panel required. But root cause must be documented.</p>
+        `}
+      ]
+    },
+    {
+      id: "refining", label: "Refining", icon: "🔧", type: "file",
+      summary: "Skipped — Bug DOR-lite satisfied, goes straight to Ready",
+      cards: [
+        { title: "Fast-track for bugs", badge: "Skipped", badgeType: "gate", body: `
+<p>Bugs with a completed DOR-lite skip the full Refining stage. No spec panel required — the root cause analysis IS the spec.</p>
+<p>The item moves directly from Ideation → Ready once the DOR-lite checklist is complete.</p>
+        `}
+      ]
+    },
+    {
+      id: "spec-panel", label: "DOR-lite", icon: "✅", type: "gate",
+      summary: "Lightweight gate passed — bug is Ready",
+      cards: [
+        { title: "Gate passed", badge: "Bug DOR-lite ✓", badgeType: "gate", body: `
+<p>All 5 DOR-lite criteria met. The bug graduates to Ready without a spec panel review.</p>
+<p class="dim">If the fix were more than 3 steps, it would be reclassified as a feature and require full DOR.</p>
+        `}
+      ]
+    },
+    {
+      id: "ready", label: "Ready", icon: "✅", type: "file",
+      summary: "Bug is ready for scheduling",
+      cards: [
+        { title: "Ready lane", badge: "BACKLOG.md#Ready", badgeType: "file", body: `
+<pre>## Ready
+
+- <strong>[bug] Contrast check toddler tier key mismatch</strong>
+  - Root cause: dict key "toddler_range" vs "toddler"
+  - Fix: 1 dict key + 1 regression test
+  - Size: XS (1 task)
+  - DOR-lite: ✓</pre>
+        `}
+      ]
+    },
+    {
+      id: "workflow", label: "/workflow", icon: "📋", type: "command",
+      summary: "Single task + quality tail",
+      cards: [
+        { title: "Generated queue", badge: "/sc:workflow", badgeType: "cmd", full: true, body: `
+<pre>> <strong>>>> NEXT</strong>
+
+- [ ] <strong>[bug] Fix toddler contrast threshold key mismatch</strong>
+  <code>/sc:implement "Fix dict key toddler_range→toddler, add regression test"</code>
+  <em>Context: app/services/validation_service.py:142,
+  tests/test_contrast_validation.py</em>
+
+- [ ] <strong>Quality tail: greenlight + cleanup</strong>
+  <code>/sc:analyze "app/services/validation_service.py" --focus quality</code></pre>
+        `}
+      ]
+    },
+    {
+      id: "queued", label: "TODO-Today", icon: "📝", type: "file",
+      summary: "Bug queued as next task",
+      cards: [
+        { title: "Queue state", badge: "TODO-Today.md", badgeType: "file", body: `
+<pre>> <strong>>>> NEXT</strong>
+
+<span class="highlight">- [ ]</span> <strong>[bug] Fix toddler contrast threshold</strong>  ← next
+- [ ] Quality tail: greenlight + cleanup</pre>
+<p class="dim">XS bugs often have just 2 queue items: the fix and the quality tail.</p>
+        `}
+      ]
+    },
+    {
+      id: "autopilot", label: "Autopilot", icon: "🤖", type: "loop",
+      summary: "TDD: write failing test, then fix the one-line bug",
+      cards: [
+        { title: "Execution", badge: "14 steps", badgeType: "loop", full: true, body: `
+<pre><span class="ok">Step 6 — TDD</span>
+Write failing test first:
+
+<span class="purple">def test_toddler_contrast_below_threshold():</span>
+    """4.2:1 ratio must FAIL for toddler tier."""
+    result = validate_contrast(
+        fg="#C8A000", bg="#FFF5E1",
+        age_range="toddler"
+    )
+    assert result.passes is False
+    assert result.required_ratio == 4.5
+
+<span class="danger">FAIL</span> — validation returns passes=True (bug confirmed!)
+
+<span class="ok">Step 7 — Fix</span>
+Line 142: "toddler_range" → "toddler"
+
+<span class="ok">PASS</span> — test now correctly rejects 4.2:1 for toddler</pre>
+        `}
+      ]
+    },
+    {
+      id: "cleanup", label: "Quality Gate", icon: "🔍", type: "gate",
+      summary: "Greenlight passes on first run",
+      cards: [
+        { title: "Clean run", badge: "Quality Gate", badgeType: "gate", body: `
+<pre><span class="ok">✓</span> All tests pass (215/215)  <span class="dim">(+1 new)</span>
+<span class="ok">✓</span> No findings
+
+<span class="ok">═══ GREENLIGHT: ALL CLEAR ═══</span></pre>
+        `}
+      ]
+    },
+    {
+      id: "commit", label: "Commit", icon: "💾", type: "loop",
+      summary: "One-line fix committed with regression test",
+      cards: [
+        { title: "Commit", badge: "git commit", badgeType: "loop", body: `
+<pre><span class="purple">$ git commit -m</span> "Fix toddler contrast check
+silently skipping validation
+
+Dict key mismatch ('toddler_range' vs 'toddler')
+caused the contrast threshold lookup to miss,
+triggering an early return that skipped validation
+entirely. Adds regression test confirming 4.2:1
+is correctly rejected for toddler tier."
+
+<span class="ok">[main b8e2f44]</span> 2 files changed,
+ 12 insertions(+), 1 deletion(-)</pre>
+        `}
+      ]
+    },
+    {
+      id: "done", label: "DONE-Today", icon: "🏁", type: "done",
+      summary: "Bug fixed — safety check restored",
+      cards: [
+        { title: "Completed", badge: "DONE-Today.md", badgeType: "file", body: `
+<pre><span class="ok">- [x] <strong>[bug] Fix toddler contrast threshold</strong>  14:41</span>
+  - Root cause: dict key mismatch
+  - Fix: 1 line + regression test
+  - Commit: b8e2f44</pre>
+<p class="dim">Total time from INBOX to DONE: the pipeline doesn't measure time — it measures quality gates passed.</p>
+        `}
+      ]
+    }
+  ]
+},
+
+// ═══════════════ HOTFIX EXAMPLE ═══════════════
+hotfix: {
+  title: "Server Crash on Empty Collection Export",
+  stages: [
+    {
+      id: "inbox", label: "INBOX", icon: "📥", type: "file",
+      summary: "Critical bug — server is crashing",
+      cards: [
+        { title: "What arrives", badge: "INBOX.md", badgeType: "file", full: true, body: `
+<pre>## Inbox
+
+- <span class="danger">SERVER DOWN</span> — exporting an empty collection
+  (0 glyphs) crashes the server with a ZeroDivisionError
+  in export_service.py:89. Stack trace in terminal.
+  Can't do any exports right now, even for collections
+  that have glyphs — the error handler isn't catching it
+  and the whole worker dies.</pre>
+<p class="danger">This is actively blocking all development and production use. It qualifies for hotfix fast-track.</p>
+        `}
+      ]
+    },
+    {
+      id: "triage", label: "/triage", icon: "🏷", type: "command",
+      summary: "Classified as [hotfix] — fast-tracks past BACKLOG entirely",
+      cards: [
+        { title: "Hotfix fast-track", badge: "/triage → HOTFIX", badgeType: "cmd", full: true, body: `
+<pre>Triaged 1 item:
+  → <span class="danger">TODO-Today [hotfix]:</span> "Fix ZeroDivisionError on
+    empty collection export"
+
+<span class="warn">⚡ FAST-TRACK:</span> Actively blocking development.
+  Skipped: Ideation, Brainstorm, Refining, Spec Panel,
+  Ready, Workflow
+
+  Bug DOR-lite satisfied at triage:
+  ✓ Root cause: division by len(glyphs) where len=0
+  ✓ Fix plan: guard clause + error response
+  ✓ Regression test: test_empty_collection_export
+  ✓ No constraint violations
+  ✓ Estimate: XS
+
+INBOX.md cleared: <span class="ok">Empty — all items triaged.</span></pre>
+<p>Hotfixes are the <strong>only</strong> items that skip the backlog entirely. They go straight from INBOX to TODO-Today. The DOR-lite must still be satisfied — it just happens during triage.</p>
+        `}
+      ]
+    },
+    {
+      id: "ideation", label: "Ideation", icon: "💡", type: "file",
+      summary: "SKIPPED — hotfix fast-track",
+      cards: [
+        { title: "Skipped", badge: "Fast-track", badgeType: "gate", body: `
+<p class="dim">Hotfixes skip Ideation. The root cause was identified during triage — no exploration phase needed.</p>
+<p>Criteria for fast-track: the bug must be <strong>actively blocking development</strong> (server down, build broken, data corruption).</p>
+        `}
+      ]
+    },
+    {
+      id: "brainstorm", label: "Brainstorm", icon: "🧠", type: "command",
+      summary: "SKIPPED — root cause obvious from stack trace",
+      cards: [
+        { title: "Skipped", badge: "Fast-track", badgeType: "gate", body: `
+<p class="dim">No brainstorm needed — the ZeroDivisionError stack trace points directly to the root cause: <code>export_service.py:89</code> divides by <code>len(glyphs)</code> without checking for zero.</p>
+        `}
+      ]
+    },
+    {
+      id: "refining", label: "Refining", icon: "🔧", type: "file",
+      summary: "SKIPPED — DOR-lite satisfied at triage",
+      cards: [
+        { title: "Skipped", badge: "Fast-track", badgeType: "gate", body: `<p class="dim">All Refining stages skipped for hotfix.</p>` }
+      ]
+    },
+    {
+      id: "spec-panel", label: "Spec Panel", icon: "👥", type: "gate",
+      summary: "SKIPPED — no spec panel for hotfixes",
+      cards: [
+        { title: "Skipped", badge: "Fast-track", badgeType: "gate", body: `<p class="dim">Spec panel is not required for hotfixes. The DOR-lite gate is the only quality check before execution.</p>` }
+      ]
+    },
+    {
+      id: "ready", label: "Ready", icon: "✅", type: "file",
+      summary: "SKIPPED — goes directly to TODO-Today",
+      cards: [
+        { title: "Skipped", badge: "Fast-track", badgeType: "gate", body: `<p class="dim">Hotfix bypasses Ready lane — placed directly in TODO-Today queue.</p>` }
+      ]
+    },
+    {
+      id: "workflow", label: "/workflow", icon: "📋", type: "command",
+      summary: "SKIPPED — triage created the queue item directly",
+      cards: [
+        { title: "Skipped", badge: "Fast-track", badgeType: "gate", body: `
+<p class="dim">No /workflow decomposition needed — the hotfix is already a single atomic task. Triage wrote it directly to TODO-Today.</p>
+<p>Note: even hotfixes get a quality tail appended automatically.</p>
+        `}
+      ]
+    },
+    {
+      id: "queued", label: "TODO-Today", icon: "📝", type: "file",
+      summary: "Hotfix is FIRST in queue — takes priority over existing tasks",
+      cards: [
+        { title: "Queue state", badge: "TODO-Today.md", badgeType: "file", full: true, body: `
+<pre>> <strong>>>> NEXT</strong>
+
+<span class="danger">- [ ] <strong>[hotfix] Fix ZeroDivisionError on empty
+  collection export</strong></span>  ← <span class="danger">URGENT — inserted at top</span>
+  <code>/sc:implement "Guard clause for empty glyphs in export_service"</code>
+  <em>Context: app/services/export_service.py:89, ZeroDivisionError</em>
+
+- [ ] <strong>Quality tail: greenlight + cleanup</strong>
+
+<span class="dim">── previously queued (paused) ──</span>
+<span class="dim">- [ ] [US-MS-1.2] Measurement system filter</span>
+<span class="dim">- [ ] [US-MS-2.1] A-series aspect ratio</span></pre>
+<p>The hotfix is inserted <strong>above</strong> any existing queue items. Previously queued work is paused until the hotfix completes.</p>
+        `}
+      ]
+    },
+    {
+      id: "autopilot", label: "Autopilot", icon: "🤖", type: "loop",
+      summary: "Guard clause added, regression test confirms fix",
+      cards: [
+        { title: "Execution", badge: "14 steps", badgeType: "loop", full: true, body: `
+<pre><span class="ok">Step 6 — TDD</span>
+
+<span class="purple">def test_empty_collection_export_returns_error():</span>
+    """Exporting 0 glyphs must return 400, not crash."""
+    response = client.post("/api/export", json={
+        "collection_id": empty_collection.id,
+        "size": "4x6"
+    })
+    assert response.status_code == 400
+    assert "no glyphs" in response.json()["detail"].lower()
+
+<span class="danger">ERROR</span> — ZeroDivisionError (crash confirmed!)
+
+<span class="ok">Step 7 — Fix</span>
+Added guard clause at export_service.py:87:
+
+<span class="purple">if not glyphs:</span>
+    <span class="purple">raise ValidationError(</span>
+        <span class="purple">"Cannot export: collection has no glyphs"</span>
+    <span class="purple">)</span>
+
+<span class="ok">PASS</span> — returns 400 with clear message
+<span class="ok">PASS</span> — server stays up, other exports work</pre>
+        `}
+      ]
+    },
+    {
+      id: "cleanup", label: "Quality Gate", icon: "🔍", type: "gate",
+      summary: "Greenlight clean — server is back",
+      cards: [
+        { title: "Clean run", badge: "Quality Gate", badgeType: "gate", body: `
+<pre><span class="ok">✓</span> All tests pass (216/216)
+<span class="ok">✓</span> Server responds on :9001
+<span class="ok">✓</span> Existing exports work
+<span class="ok">✓</span> No findings
+
+<span class="ok">═══ GREENLIGHT: ALL CLEAR ═══</span>
+<span class="ok">═══ SERVER RECOVERED ═══</span></pre>
+        `}
+      ]
+    },
+    {
+      id: "commit", label: "Commit", icon: "💾", type: "loop",
+      summary: "Hotfix committed — server restored",
+      cards: [
+        { title: "Commit", badge: "git commit", badgeType: "loop", body: `
+<pre><span class="purple">$ git commit -m</span> "Fix server crash on empty
+collection export (ZeroDivisionError)
+
+export_service.py:89 divided by len(glyphs) without
+guarding against empty collections. Added validation
+check that returns 400 with descriptive error instead
+of crashing the worker process."
+
+<span class="ok">[main c4d1e88]</span> 2 files changed,
+ 18 insertions(+), 1 deletion(-)</pre>
+        `}
+      ]
+    },
+    {
+      id: "done", label: "DONE-Today", icon: "🏁", type: "done",
+      summary: "Hotfix complete — autopilot resumes normal queue",
+      cards: [
+        { title: "Completed", badge: "DONE-Today.md", badgeType: "file", full: true, body: `
+<pre><span class="ok">- [x] <strong>[hotfix] Fix ZeroDivisionError on empty
+  collection export</strong>  14:07</span>
+  - Root cause: unguarded division by len(glyphs)
+  - Fix: guard clause + 400 error response
+  - Commit: c4d1e88</pre>
+<p>With the hotfix complete, the autopilot resumes the previously queued feature work:</p>
+<pre><span class="highlight">- [ ]</span> <strong>[US-MS-1.2] Measurement system filter</strong>  ← resumes
+- [ ] [US-MS-2.1] A-series aspect ratio
+...</pre>
+<p class="dim">The fast-track path: INBOX → /triage → TODO-Today → Autopilot → DONE. Skipped 6 intermediate stages. Total pipeline stages traversed: 7 instead of 13.</p>
+        `}
+      ]
+    }
+  ]
+}
+
+};
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+
+let currentExample = 'feature';
+let currentStage = 0;
+
+// ─────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────
+
+function loadExample(name) {
+  currentExample = name;
+  currentStage = 0;
+  document.querySelectorAll('.example-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.example-btn[onclick*="${name}"]`).classList.add('active');
+  renderAll();
+}
+
+function navigate(dir) {
+  const stages = EXAMPLES[currentExample].stages;
+  currentStage = Math.max(0, Math.min(stages.length - 1, currentStage + dir));
+  renderAll();
+}
+
+function goToStage(idx) {
+  currentStage = idx;
+  renderAll();
+}
+
+function renderAll() {
+  renderRail();
+  renderDetail();
+  renderProgress();
+}
+
+function renderRail() {
+  const rail = document.getElementById('rail');
+  const stages = EXAMPLES[currentExample].stages;
+  rail.innerHTML = '';
+
+  stages.forEach((s, i) => {
+    if (i > 0) {
+      const conn = document.createElement('div');
+      conn.className = 'connector';
+      if (i <= currentStage) conn.classList.add('passed');
+      if (i === currentStage) conn.classList.add('active-conn');
+      rail.appendChild(conn);
+    }
+
+    const node = document.createElement('div');
+    node.className = 'stage-node';
+    if (i === currentStage) node.classList.add('active');
+    if (i < currentStage) node.classList.add('visited');
+    node.onclick = () => goToStage(i);
+
+    const circle = document.createElement('div');
+    circle.className = `node-circle ${s.type}`;
+    circle.textContent = s.icon;
+
+    const label = document.createElement('div');
+    label.className = 'node-label';
+    label.textContent = s.label;
+
+    node.appendChild(circle);
+    node.appendChild(label);
+    rail.appendChild(node);
+  });
+}
+
+function renderDetail() {
+  const panel = document.getElementById('detail');
+  const stage = EXAMPLES[currentExample].stages[currentStage];
+
+  let html = `<div class="card full-width" style="padding:16px 20px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span style="font-size:24px;">${stage.icon}</span>
+      <div>
+        <div style="font-size:16px;color:var(--text-bright);font-weight:600;">${stage.label}</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-top:2px;">${stage.summary}</div>
+      </div>
+      <div style="margin-left:auto;font-size:11px;color:var(--text-dim);font-family:var(--mono);">
+        Stage ${currentStage + 1} / ${EXAMPLES[currentExample].stages.length}
+      </div>
+    </div>
+  </div>`;
+
+  stage.cards.forEach(card => {
+    const fullClass = card.full ? ' full-width' : '';
+    const badgeHtml = card.badge
+      ? `<span class="badge badge-${card.badgeType || 'file'}">${card.badge}</span>`
+      : '';
+    html += `<div class="card${fullClass}">
+      <h3>${card.title} ${badgeHtml}</h3>
+      <div class="card-body">${card.body}</div>
+    </div>`;
+  });
+
+  panel.innerHTML = html;
+}
+
+function renderProgress() {
+  const stages = EXAMPLES[currentExample].stages;
+  const pct = ((currentStage + 1) / stages.length) * 100;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent =
+    `Stage ${currentStage + 1} / ${stages.length} — ${stages[currentStage].label}`;
+  document.getElementById('btn-prev').disabled = currentStage === 0;
+  document.getElementById('btn-next').disabled = currentStage === stages.length - 1;
+}
+
+// ── Keyboard nav ──
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); navigate(1); }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); navigate(-1); }
+  if (e.key === '1') loadExample('feature');
+  if (e.key === '2') loadExample('bug');
+  if (e.key === '3') loadExample('hotfix');
+});
+
+// ── Init ──
+renderAll();
+</script>
+</body>
+</html>
