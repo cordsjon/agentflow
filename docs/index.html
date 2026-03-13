@@ -99,6 +99,12 @@
   .card-icon.pipeline { background: rgba(88,166,255,0.15); color: var(--accent); }
   .card-icon.business { background: rgba(63,185,80,0.15); color: var(--green); }
   .card-icon.spec     { background: rgba(188,140,255,0.15); color: var(--purple); }
+  .card-icon.shepherd { background: rgba(57,210,192,0.15); color: var(--cyan); }
+
+  .card.featured {
+    grid-column: 1 / -1;
+    border-color: var(--cyan);
+  }
 
   .card h2 {
     font-size: 1.25rem;
@@ -149,6 +155,13 @@
 </header>
 
 <div class="cards">
+
+  <a href="shepherd.html" class="card featured">
+    <div class="card-icon shepherd">&#x2725;</div>
+    <h2>Shepherd</h2>
+    <p>Unified AI Agent Governance Framework &mdash; three nested loops, 44 skills, 19 expert panelists, five-layer quality stack.</p>
+    <span class="tag">governance</span>
+  </a>
 
   <a href="pipeline-playground.html" class="card">
     <div class="card-icon pipeline">&#9654;</div>

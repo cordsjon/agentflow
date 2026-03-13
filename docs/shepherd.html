@@ -1,0 +1,2076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shepherd — Unified AI Agent Governance Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@300;400;500&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #0a0c10;
+    --bg-card: #12151c;
+    --bg-elevated: #1a1e28;
+    --bg-glass: rgba(18, 21, 28, 0.7);
+    --border-subtle: rgba(255, 255, 255, 0.06);
+    --border-accent: rgba(72, 199, 176, 0.25);
+    --text-primary: #e8eaf0;
+    --text-secondary: #8a8fa8;
+    --text-muted: #555a6e;
+    --accent-teal: #48c7b0;
+    --accent-teal-dim: rgba(72, 199, 176, 0.15);
+    --accent-amber: #f0b957;
+    --accent-amber-dim: rgba(240, 185, 87, 0.12);
+    --accent-rose: #e8637a;
+    --accent-rose-dim: rgba(232, 99, 122, 0.12);
+    --accent-blue: #5b9cf5;
+    --accent-blue-dim: rgba(91, 156, 245, 0.12);
+    --accent-violet: #a78bfa;
+    --accent-violet-dim: rgba(167, 139, 250, 0.12);
+    --font-display: 'DM Serif Display', Georgia, serif;
+    --font-body: 'Source Sans 3', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'Consolas', monospace;
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    line-height: 1.65;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Noise Overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* Utility */
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+  /* ── Hero ── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    padding: 6rem 2rem;
+  }
+
+  .hero__grid-bg {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(72, 199, 176, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(72, 199, 176, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black, transparent);
+  }
+
+  .hero__glow {
+    position: absolute;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.15;
+    pointer-events: none;
+  }
+  .hero__glow--teal { background: var(--accent-teal); top: 10%; left: 5%; }
+  .hero__glow--violet { background: var(--accent-violet); bottom: 10%; right: 10%; opacity: 0.08; }
+
+  .hero__eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent-teal);
+    margin-bottom: 1.5rem;
+    opacity: 0;
+    animation: fadeUp 0.8s var(--ease-out-expo) 0.2s forwards;
+  }
+
+  .hero__title {
+    font-family: var(--font-display);
+    font-size: clamp(2.8rem, 7vw, 5.5rem);
+    font-weight: 400;
+    line-height: 1.08;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+    max-width: 900px;
+    opacity: 0;
+    animation: fadeUp 1s var(--ease-out-expo) 0.4s forwards;
+  }
+  .hero__title em {
+    font-style: italic;
+    color: var(--accent-teal);
+  }
+
+  .hero__subtitle {
+    font-size: 1.25rem;
+    font-weight: 300;
+    color: var(--text-secondary);
+    max-width: 700px;
+    line-height: 1.7;
+    margin-bottom: 3rem;
+    opacity: 0;
+    animation: fadeUp 1s var(--ease-out-expo) 0.6s forwards;
+  }
+
+  .hero__stats {
+    display: flex;
+    gap: 3rem;
+    flex-wrap: wrap;
+    opacity: 0;
+    animation: fadeUp 1s var(--ease-out-expo) 0.8s forwards;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .stat__value {
+    font-family: var(--font-mono);
+    font-size: 2rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+  }
+  .stat__value .unit {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    font-weight: 300;
+    margin-left: 0.15em;
+  }
+  .stat__label {
+    font-size: 0.78rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .hero__scroll-cue {
+    position: absolute;
+    bottom: 2.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    opacity: 0;
+    animation: fadeUp 1s var(--ease-out-expo) 1.2s forwards;
+  }
+  .hero__scroll-cue .arrow {
+    width: 1px; height: 40px;
+    background: linear-gradient(to bottom, var(--text-muted), transparent);
+    animation: pulse-down 2s ease-in-out infinite;
+  }
+
+  /* ── Section Shared ── */
+  section { padding: 7rem 0; position: relative; }
+
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 400;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent-teal);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .section-label::before {
+    content: '';
+    width: 24px; height: 1px;
+    background: var(--accent-teal);
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 400;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+  }
+
+  .section-desc {
+    font-size: 1.1rem;
+    font-weight: 300;
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin-bottom: 3.5rem;
+  }
+
+  /* ── Divider ── */
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-subtle), transparent);
+    margin: 0 auto;
+    max-width: 1200px;
+  }
+
+  /* ── Origin Cards ── */
+  .origin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .origin-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.4s ease, transform 0.4s var(--ease-out-expo);
+  }
+  .origin-card:hover {
+    border-color: var(--border-accent);
+    transform: translateY(-2px);
+  }
+  .origin-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .origin-card:nth-child(1)::before { background: linear-gradient(90deg, var(--accent-teal), transparent); }
+  .origin-card:nth-child(2)::before { background: linear-gradient(90deg, var(--accent-amber), transparent); }
+  .origin-card:nth-child(3)::before { background: linear-gradient(90deg, var(--accent-blue), transparent); }
+
+  .origin-card__icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    margin-bottom: 1.25rem;
+  }
+  .origin-card:nth-child(1) .origin-card__icon { background: var(--accent-teal-dim); color: var(--accent-teal); }
+  .origin-card:nth-child(2) .origin-card__icon { background: var(--accent-amber-dim); color: var(--accent-amber); }
+  .origin-card:nth-child(3) .origin-card__icon { background: var(--accent-blue-dim); color: var(--accent-blue); }
+
+  .origin-card__title {
+    font-family: var(--font-body);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+  .origin-card__text {
+    font-size: 0.92rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+
+  .phase-track {
+    display: flex;
+    gap: 0.35rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+  .phase-tag {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .phase-tag:hover { border-color: var(--accent-teal); color: var(--accent-teal); }
+  .phase-tag--active { border-color: var(--accent-teal); color: var(--accent-teal); background: var(--accent-teal-dim); }
+
+  /* ── Three Loops Section ── */
+  .loops-section { background: var(--bg-card); border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); }
+
+  .loop-diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  .loop-layer {
+    position: relative;
+    padding: 2rem 2.5rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    margin-bottom: -1px;
+    transition: border-color 0.3s ease, background 0.3s ease;
+  }
+  .loop-layer:hover {
+    z-index: 2;
+    border-color: var(--border-accent);
+    background: rgba(72, 199, 176, 0.02);
+  }
+
+  .loop-layer__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .loop-layer__badge {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+
+  .loop-layer--outer .loop-layer__badge { background: var(--accent-amber-dim); color: var(--accent-amber); }
+  .loop-layer--inner .loop-layer__badge { background: var(--accent-teal-dim); color: var(--accent-teal); }
+  .loop-layer--cleanup .loop-layer__badge { background: var(--accent-rose-dim); color: var(--accent-rose); }
+
+  .loop-layer__title {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+  }
+
+  .loop-layer__desc {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    margin-bottom: 1.25rem;
+    max-width: 600px;
+  }
+
+  .loop-layer__flow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .flow-node {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .flow-node:hover { border-color: var(--border-accent); color: var(--text-primary); }
+  .flow-node--highlight { border-color: var(--accent-teal); color: var(--accent-teal); background: var(--accent-teal-dim); }
+  .flow-node--warn { border-color: var(--accent-rose); color: var(--accent-rose); background: var(--accent-rose-dim); }
+
+  .flow-arrow {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+  }
+
+  .loop-connector {
+    display: flex;
+    justify-content: center;
+    padding: 0.5rem 0;
+    position: relative;
+    z-index: 1;
+  }
+  .loop-connector__line {
+    width: 1px;
+    height: 28px;
+    background: linear-gradient(to bottom, var(--accent-teal), var(--border-subtle));
+  }
+  .loop-connector__label {
+    position: absolute;
+    right: calc(50% + 20px);
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  /* ── Pipeline Section ── */
+  .pipeline-visual {
+    background: var(--bg-deep);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    padding: 3rem 2rem;
+    margin-top: 2rem;
+    overflow-x: auto;
+  }
+
+  .pipeline-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    flex-wrap: wrap;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .pipeline-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 1rem 1.25rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    min-width: 110px;
+  }
+  .pipeline-node:hover {
+    border-color: var(--border-accent);
+    box-shadow: 0 0 30px rgba(72, 199, 176, 0.06);
+  }
+  .pipeline-node__icon {
+    font-size: 1.1rem;
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .pipeline-node__name {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+  .pipeline-node__type {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .pipeline-node--file .pipeline-node__icon { background: var(--accent-blue-dim); color: var(--accent-blue); }
+  .pipeline-node--skill .pipeline-node__icon { background: var(--accent-teal-dim); color: var(--accent-teal); }
+  .pipeline-node--gate .pipeline-node__icon { background: var(--accent-rose-dim); color: var(--accent-rose); }
+
+  .pipeline-arrow {
+    font-family: var(--font-mono);
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    padding: 0 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .pipeline-gate {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.6rem 1rem;
+    border: 1px dashed;
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 500;
+    min-width: 70px;
+  }
+  .pipeline-gate--dor { border-color: var(--accent-amber); color: var(--accent-amber); background: var(--accent-amber-dim); }
+  .pipeline-gate--dod { border-color: var(--accent-teal); color: var(--accent-teal); background: var(--accent-teal-dim); }
+  .pipeline-gate__label { font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.7; }
+
+  /* ── Skills Grid ── */
+  .skills-section { }
+
+  .skill-categories {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .skill-category {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .skill-category:hover { border-color: var(--border-accent); }
+
+  .skill-category__header {
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .skill-category__name {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .skill-category__count {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+  }
+
+  .skill-category:nth-child(1) .skill-category__count { background: var(--accent-teal-dim); color: var(--accent-teal); }
+  .skill-category:nth-child(2) .skill-category__count { background: var(--accent-amber-dim); color: var(--accent-amber); }
+  .skill-category:nth-child(3) .skill-category__count { background: var(--accent-blue-dim); color: var(--accent-blue); }
+  .skill-category:nth-child(4) .skill-category__count { background: var(--accent-rose-dim); color: var(--accent-rose); }
+  .skill-category:nth-child(5) .skill-category__count { background: var(--accent-violet-dim); color: var(--accent-violet); }
+  .skill-category:nth-child(6) .skill-category__count { background: var(--accent-teal-dim); color: var(--accent-teal); }
+
+  .skill-category__items {
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .skill-chip {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    padding: 0.25rem 0.55rem;
+    border-radius: 5px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    cursor: default;
+  }
+  .skill-chip:hover {
+    border-color: var(--accent-teal);
+    color: var(--accent-teal);
+    background: var(--accent-teal-dim);
+  }
+
+  /* ── Expert Panels ── */
+  .panels-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .panel-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.4s;
+  }
+  .panel-card:hover { border-color: var(--border-accent); }
+  .panel-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .panel-card:nth-child(1)::before { background: linear-gradient(90deg, var(--accent-blue), transparent); }
+  .panel-card:nth-child(2)::before { background: linear-gradient(90deg, var(--accent-amber), transparent); }
+
+  .panel-card__badge {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 1rem;
+  }
+  .panel-card:nth-child(1) .panel-card__badge { background: var(--accent-blue-dim); color: var(--accent-blue); }
+  .panel-card:nth-child(2) .panel-card__badge { background: var(--accent-amber-dim); color: var(--accent-amber); }
+
+  .panel-card__title {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    margin-bottom: 0.5rem;
+  }
+  .panel-card__desc {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    margin-bottom: 1.25rem;
+    line-height: 1.65;
+  }
+
+  .panel-members {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .panel-member {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    transition: background 0.2s;
+  }
+  .panel-member:hover { background: var(--bg-elevated); }
+  .panel-member__avatar {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+  .panel-card:nth-child(1) .panel-member__avatar { background: var(--accent-blue-dim); color: var(--accent-blue); }
+  .panel-card:nth-child(2) .panel-member__avatar { background: var(--accent-amber-dim); color: var(--accent-amber); }
+  .panel-member__name { font-weight: 600; color: var(--text-primary); }
+  .panel-member__more {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    padding: 0.4rem 0.6rem;
+  }
+
+  .panel-gate {
+    margin-top: 1rem;
+    padding: 0.6rem 1rem;
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .panel-card:nth-child(1) .panel-gate { background: var(--accent-blue-dim); color: var(--accent-blue); }
+  .panel-card:nth-child(2) .panel-gate { background: var(--accent-amber-dim); color: var(--accent-amber); }
+
+  /* ── Multi-Agent Architecture ── */
+  .multiagent-section { background: var(--bg-card); border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); }
+
+  .multiagent-diagram {
+    display: grid;
+    grid-template-columns: 240px 1fr 240px;
+    gap: 2rem;
+    align-items: start;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  .agent-hub {
+    grid-column: 2;
+    background: var(--bg-deep);
+    border: 2px solid var(--accent-teal);
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+    position: relative;
+  }
+  .agent-hub::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--accent-teal-dim), transparent, var(--accent-violet-dim));
+    z-index: -1;
+  }
+  .agent-hub__title {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    margin-bottom: 0.5rem;
+    color: var(--accent-teal);
+  }
+  .agent-hub__desc {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-bottom: 1.25rem;
+  }
+  .agent-hub__items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    justify-content: center;
+  }
+
+  .agent-node {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 1.25rem;
+    text-align: center;
+    transition: border-color 0.3s, transform 0.3s var(--ease-out-expo);
+  }
+  .agent-node:hover { border-color: var(--border-accent); transform: translateY(-2px); }
+  .agent-node__name {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+  }
+  .agent-node__status {
+    font-size: 0.68rem;
+    font-family: var(--font-mono);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .agent-node__status--active { background: var(--accent-teal-dim); color: var(--accent-teal); }
+  .agent-node__status--stub { background: rgba(255,255,255,0.04); color: var(--text-muted); }
+
+  .agent-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .tether-card {
+    background: var(--bg-deep);
+    border: 1px solid var(--accent-violet);
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+  .tether-card__title {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    color: var(--accent-violet);
+    margin-bottom: 0.75rem;
+  }
+  .tether-card__items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .tether-item {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    padding: 0.2rem 0;
+  }
+
+  .project-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .project-item {
+    background: var(--bg-deep);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: border-color 0.3s;
+  }
+  .project-item:hover { border-color: var(--border-accent); }
+  .project-item__dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent-teal);
+    flex-shrink: 0;
+  }
+  .project-item__name {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-primary);
+  }
+  .project-item__status {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    margin-left: auto;
+    font-family: var(--font-mono);
+  }
+
+  /* ── Quality Gates ── */
+  .gates-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  .gate-layer {
+    padding: 1.5rem 2rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    margin-bottom: -1px;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    transition: border-color 0.3s, background 0.3s;
+    position: relative;
+  }
+  .gate-layer:hover {
+    z-index: 2;
+    border-color: var(--border-accent);
+    background: rgba(72, 199, 176, 0.02);
+  }
+
+  .gate-layer__number {
+    font-family: var(--font-mono);
+    font-size: 1.4rem;
+    font-weight: 500;
+    min-width: 36px;
+    text-align: center;
+  }
+  .gate-layer:nth-child(1) .gate-layer__number { color: var(--accent-amber); }
+  .gate-layer:nth-child(2) .gate-layer__number { color: var(--accent-teal); }
+  .gate-layer:nth-child(3) .gate-layer__number { color: var(--accent-rose); }
+  .gate-layer:nth-child(4) .gate-layer__number { color: var(--accent-blue); }
+  .gate-layer:nth-child(5) .gate-layer__number { color: var(--accent-violet); }
+
+  .gate-layer__content { flex: 1; }
+  .gate-layer__title {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+  .gate-layer__desc {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+  }
+
+  .gate-layer__badge {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .gate-layer:nth-child(1) .gate-layer__badge { background: var(--accent-amber-dim); color: var(--accent-amber); }
+  .gate-layer:nth-child(2) .gate-layer__badge { background: var(--accent-teal-dim); color: var(--accent-teal); }
+  .gate-layer:nth-child(3) .gate-layer__badge { background: var(--accent-rose-dim); color: var(--accent-rose); }
+  .gate-layer:nth-child(4) .gate-layer__badge { background: var(--accent-blue-dim); color: var(--accent-blue); }
+  .gate-layer:nth-child(5) .gate-layer__badge { background: var(--accent-violet-dim); color: var(--accent-violet); }
+
+  /* ── Tech Stack ── */
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+  }
+  .tech-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    transition: border-color 0.3s;
+  }
+  .tech-item:hover { border-color: var(--border-accent); }
+  .tech-item__icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+  .tech-item:nth-child(1) .tech-item__icon { background: var(--accent-teal-dim); color: var(--accent-teal); }
+  .tech-item:nth-child(2) .tech-item__icon { background: var(--accent-violet-dim); color: var(--accent-violet); }
+  .tech-item:nth-child(3) .tech-item__icon { background: var(--accent-amber-dim); color: var(--accent-amber); }
+  .tech-item:nth-child(4) .tech-item__icon { background: var(--accent-blue-dim); color: var(--accent-blue); }
+  .tech-item:nth-child(5) .tech-item__icon { background: var(--accent-rose-dim); color: var(--accent-rose); }
+  .tech-item:nth-child(6) .tech-item__icon { background: var(--accent-teal-dim); color: var(--accent-teal); }
+
+  .tech-item__name {
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+  .tech-item__role {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+  }
+
+  /* ── Footer ── */
+  .footer {
+    padding: 4rem 0;
+    text-align: center;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+  .footer__logo {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+  .footer__tagline {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent-teal);
+    margin-bottom: 1.5rem;
+  }
+  .footer__desc {
+    max-width: 600px;
+    margin: 0 auto 1.5rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+  .footer__copy {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-muted);
+  }
+
+  /* ── Comparison Table ── */
+  .comparison-table {
+    margin-top: 2.5rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--bg-card);
+  }
+  .comp-row {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr 1.3fr;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .comp-row:last-child { border-bottom: none; }
+  .comp-row--header {
+    background: var(--bg-elevated);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+  .comp-row--header .comp-cell { padding: 0.9rem 1rem; font-weight: 500; }
+  .comp-cell {
+    padding: 0.75rem 1rem;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--text-secondary);
+    border-right: 1px solid var(--border-subtle);
+  }
+  .comp-cell:last-child { border-right: none; }
+  .comp-cell--dim {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    background: rgba(255,255,255,0.015);
+  }
+  .comp-cell--accent {
+    color: var(--text-primary);
+    background: var(--accent-teal-dim);
+    border-left: 2px solid var(--accent-teal);
+  }
+  .comp-row--header .comp-cell--accent {
+    color: var(--accent-teal);
+    background: rgba(72,199,176,0.08);
+  }
+  .comp-cell code {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    background: rgba(255,255,255,0.06);
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    color: var(--text-primary);
+  }
+
+  /* ── Autonomy Spectrum ── */
+  .autonomy-stack {
+    margin-top: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .autonomy-row {
+    display: grid;
+    grid-template-columns: 120px 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 0 1rem;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+  }
+  .autonomy-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    grid-row: 1 / 3;
+  }
+  .autonomy-bar {
+    height: 6px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 3px;
+    overflow: hidden;
+    grid-column: 2;
+  }
+  .autonomy-bar__fill {
+    width: var(--bar-width);
+    height: 100%;
+    background: var(--bar-color);
+    border-radius: 3px;
+    transition: width 1s var(--ease-out-expo);
+  }
+  .autonomy-tag {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .autonomy-tag--det { background: var(--accent-teal-dim); color: var(--accent-teal); }
+  .autonomy-tag--semi { background: var(--accent-blue-dim); color: var(--accent-blue); }
+  .autonomy-tag--alg { background: var(--accent-violet-dim); color: var(--accent-violet); }
+  .autonomy-tag--auto { background: var(--accent-amber-dim); color: var(--accent-amber); }
+  .autonomy-desc {
+    grid-column: 2 / 4;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 0.35rem;
+  }
+
+  /* ── Verdict Cards ── */
+  .comp-verdict {
+    margin-top: 2rem;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  .verdict-item {
+    padding: 1.25rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+  }
+  .verdict-item--highlight {
+    border-color: var(--border-accent);
+    background: var(--accent-teal-dim);
+  }
+  .verdict-item__label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+  .verdict-item--highlight .verdict-item__label { color: var(--accent-teal); }
+  .verdict-item__desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+  }
+  .verdict-item--highlight .verdict-item__desc { color: var(--text-primary); }
+
+  @media (max-width: 768px) {
+    .comp-row { grid-template-columns: 1fr; }
+    .comp-row--header { display: none; }
+    .comp-cell--dim {
+      font-weight: 600;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .comp-cell { border-right: none; }
+    .autonomy-row { grid-template-columns: 1fr auto; }
+    .autonomy-label { grid-row: auto; grid-column: 1 / -1; margin-bottom: 0.3rem; }
+    .autonomy-desc { grid-column: 1 / -1; }
+    .comp-verdict { grid-template-columns: 1fr; }
+  }
+
+  /* ── Animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse-down {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s var(--ease-out-expo), transform 0.8s var(--ease-out-expo);
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .multiagent-diagram { grid-template-columns: 1fr; }
+    .agent-hub { grid-column: 1; }
+    .panels-grid { grid-template-columns: 1fr; }
+    .hero__stats { gap: 1.5rem; }
+    .loop-connector__label { display: none; }
+    .pipeline-flow { justify-content: flex-start; }
+    section { padding: 4rem 0; }
+    .skill-categories { grid-template-columns: 1fr; }
+  }
+
+  /* ── Top nav ── */
+  .topnav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 2rem;
+    background: rgba(10, 12, 16, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .topnav__home, .topnav__github {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 0.35rem 0.7rem;
+    border-radius: 6px;
+    transition: color 0.2s, background 0.2s;
+  }
+  .topnav__home:hover, .topnav__github:hover {
+    color: var(--accent-teal);
+    background: var(--accent-teal-dim);
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ NAV ═══════════════════════ -->
+<nav class="topnav">
+  <a href="./" class="topnav__home" title="Back to AgentFlow">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span>AgentFlow</span>
+  </a>
+  <a href="pipeline-playground.html" class="topnav__home" title="Pipeline Playground">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    <span>Pipeline</span>
+  </a>
+  <a href="spec-panel-playground.html" class="topnav__home" title="Spec Panel Playground">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+    <span>Spec Panel</span>
+  </a>
+  <a href="https://github.com/cordsjon/agentflow" class="topnav__github" target="_blank" rel="noopener">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+    <span>GitHub</span>
+  </a>
+</nav>
+
+<!-- ═══════════════════════ HERO ═══════════════════════ -->
+<section class="hero">
+  <div class="hero__grid-bg"></div>
+  <div class="hero__glow hero__glow--teal"></div>
+  <div class="hero__glow hero__glow--violet"></div>
+
+  <div class="container">
+    <p class="hero__eyebrow">Unified AI Agent Governance</p>
+    <h1 class="hero__title">Structure scales<br><em>autonomy.</em></h1>
+    <p class="hero__subtitle">
+      Born from 515 quality findings across 19 audit passes, Shepherd merges four independent systems
+      into one integrated governance layer for autonomous agent orchestration. One developer,
+      the sustained output of a small team.
+    </p>
+
+    <div class="hero__stats">
+      <div class="stat">
+        <div class="stat__value">44<span class="unit">skills</span></div>
+        <div class="stat__label">/sh: namespace</div>
+      </div>
+      <div class="stat">
+        <div class="stat__value">3</div>
+        <div class="stat__label">Nested Loops</div>
+      </div>
+      <div class="stat">
+        <div class="stat__value">14<span class="unit">steps</span></div>
+        <div class="stat__label">Execution Cycle</div>
+      </div>
+      <div class="stat">
+        <div class="stat__value">19</div>
+        <div class="stat__label">Expert Panelists</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero__scroll-cue">
+    <span>Explore</span>
+    <div class="arrow"></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ PURPOSE / ORIGIN ═══════════════════════ -->
+<div class="divider"></div>
+
+<section class="container">
+  <div class="reveal">
+    <div class="section-label">Origin</div>
+    <h2 class="section-title">Why Shepherd exists</h2>
+    <p class="section-desc">
+      Autonomous agents without governance produce chaos. Shepherd turns hard-won lessons
+      from 500+ user stories into a repeatable system for bounded autonomy.
+    </p>
+  </div>
+
+  <div class="origin-grid reveal">
+    <div class="origin-card">
+      <div class="origin-card__icon">&#x2261;</div>
+      <h3 class="origin-card__title">From Chaos to Governance</h3>
+      <p class="origin-card__text">
+        515 quality findings across 19 audit passes revealed the pattern: agents need structure,
+        not freedom. Six phases of evolution, each born from production pain.
+      </p>
+      <div class="phase-track">
+        <span class="phase-tag">P0 YOLO</span>
+        <span class="phase-tag">P1 Checklists</span>
+        <span class="phase-tag">P2 Loops</span>
+        <span class="phase-tag">P3 Pipeline</span>
+        <span class="phase-tag">P4 Skills</span>
+        <span class="phase-tag phase-tag--active">P5 The Merge</span>
+      </div>
+    </div>
+    <div class="origin-card">
+      <div class="origin-card__icon">&#x25CE;</div>
+      <h3 class="origin-card__title">Bounded Autonomy</h3>
+      <p class="origin-card__text">
+        Agents execute autonomously within guardrails. Humans control WHAT gets built and in what order.
+        Quality gates halt execution on serious issues. A single <code style="font-family: var(--font-mono); font-size: 0.85em; color: var(--accent-amber); background: var(--accent-amber-dim); padding: 0.1rem 0.35rem; border-radius: 3px;">.autopilot</code> semaphore is the kill switch.
+      </p>
+    </div>
+    <div class="origin-card">
+      <div class="origin-card__icon">&#x2B21;</div>
+      <h3 class="origin-card__title">Domain Agnostic</h3>
+      <p class="origin-card__text">
+        Software development, data pipelines, asset generation, content campaigns.
+        Battle-tested on 500+ user stories. The governance pattern works for anything
+        large enough to need a backlog.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ THREE LOOPS ═══════════════════════ -->
+<section class="loops-section">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Execution Model</div>
+      <h2 class="section-title">Three nested loops</h2>
+      <p class="section-desc">
+        Human intent flows inward through progressively tighter execution loops.
+        Each loop has its own cadence, its own quality gate, its own halt condition.
+      </p>
+    </div>
+
+    <div class="loop-diagram reveal">
+
+      <!-- Outer Loop -->
+      <div class="loop-layer loop-layer--outer">
+        <div class="loop-layer__header">
+          <h3 class="loop-layer__title">Outer Loop</h3>
+          <span class="loop-layer__badge">Human-Driven</span>
+        </div>
+        <p class="loop-layer__desc">Human controls the pipeline. Ideas enter through INBOX, get triaged into BACKLOG, refined through stages, and scheduled into TODO-Today.</p>
+        <div class="loop-layer__flow">
+          <span class="flow-node">INBOX.md</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node flow-node--highlight">/triage</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node">BACKLOG.md</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node" style="color: var(--text-muted); font-size: 0.65rem;">Ideation &rarr; Refining &rarr; Ready</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node flow-node--highlight">/workflow</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node">TODO-Today.md</span>
+        </div>
+      </div>
+
+      <div class="loop-connector">
+        <div class="loop-connector__line"></div>
+        <span class="loop-connector__label">tasks queued</span>
+      </div>
+
+      <!-- Inner Loop -->
+      <div class="loop-layer loop-layer--inner">
+        <div class="loop-layer__header">
+          <h3 class="loop-layer__title">Inner Loop</h3>
+          <span class="loop-layer__badge">Autopilot &mdash; 14 Steps</span>
+        </div>
+        <p class="loop-layer__desc">Autonomous execution. Reads next task, verifies DOR, implements with TDD, runs verification, code review, cleanup, commits, and loops.</p>
+        <div class="loop-layer__flow">
+          <span class="flow-node">Read task</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node">Check semaphore</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node">Verify DOR</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node flow-node--highlight">TDD</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node">Implement</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node">Verify</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node">Code review</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node">Cleanup</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node flow-node--highlight">Commit</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node">DONE-Today</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node" style="font-size: 0.65rem; color: var(--text-muted);">Loop</span>
+        </div>
+      </div>
+
+      <div class="loop-connector">
+        <div class="loop-connector__line"></div>
+        <span class="loop-connector__label">cleanup triggered</span>
+      </div>
+
+      <!-- Cleanup Sub-Loop -->
+      <div class="loop-layer loop-layer--cleanup">
+        <div class="loop-layer__header">
+          <h3 class="loop-layer__title">Cleanup Sub-Loop</h3>
+          <span class="loop-layer__badge">Quality Gate</span>
+        </div>
+        <p class="loop-layer__desc">Automated quality enforcement. Runs greenlight, auto-fixes Low severity findings, halts on Medium+ for human review.</p>
+        <div class="loop-layer__flow">
+          <span class="flow-node flow-node--highlight">Run greenlight</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node">Fix Low findings</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node">Re-run greenlight</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node flow-node--warn">Medium+ found?</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node flow-node--warn">HALT</span>
+          <span class="flow-arrow">&rarr;</span>
+          <span class="flow-node" style="font-size: 0.65rem; color: var(--text-muted);">Human review</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ PIPELINE ═══════════════════════ -->
+<div class="divider"></div>
+
+<section class="container">
+  <div class="reveal">
+    <div class="section-label">Pipeline</div>
+    <h2 class="section-title">File-based pipeline, markdown all the way down</h2>
+    <p class="section-desc">
+      No database, no project management tool. Five markdown files govern the entire lifecycle.
+      DOR gates entry, DOD gates exit. Everything is version-controlled.
+    </p>
+  </div>
+
+  <div class="pipeline-visual reveal">
+    <div class="pipeline-flow">
+      <div class="pipeline-node pipeline-node--file">
+        <div class="pipeline-node__icon">&#x2709;</div>
+        <div class="pipeline-node__name">INBOX.md</div>
+        <div class="pipeline-node__type">Raw input</div>
+      </div>
+      <div class="pipeline-arrow">&rarr;</div>
+      <div class="pipeline-node pipeline-node--skill">
+        <div class="pipeline-node__icon">&#x2699;</div>
+        <div class="pipeline-node__name">/triage</div>
+        <div class="pipeline-node__type">Skill</div>
+      </div>
+      <div class="pipeline-arrow">&rarr;</div>
+      <div class="pipeline-node pipeline-node--file">
+        <div class="pipeline-node__icon">&#x2630;</div>
+        <div class="pipeline-node__name">BACKLOG.md</div>
+        <div class="pipeline-node__type">Staged work</div>
+      </div>
+      <div class="pipeline-arrow">&rarr;</div>
+      <div class="pipeline-gate pipeline-gate--dor">
+        <div>DOR</div>
+        <div class="pipeline-gate__label">Entry gate</div>
+      </div>
+      <div class="pipeline-arrow">&rarr;</div>
+      <div class="pipeline-node pipeline-node--skill">
+        <div class="pipeline-node__icon">&#x2699;</div>
+        <div class="pipeline-node__name">/workflow</div>
+        <div class="pipeline-node__type">Skill</div>
+      </div>
+      <div class="pipeline-arrow">&rarr;</div>
+      <div class="pipeline-node pipeline-node--file">
+        <div class="pipeline-node__icon">&#x2611;</div>
+        <div class="pipeline-node__name">TODO-Today.md</div>
+        <div class="pipeline-node__type">Active queue</div>
+      </div>
+      <div class="pipeline-arrow">&rarr;</div>
+      <div class="pipeline-node pipeline-node--skill">
+        <div class="pipeline-node__icon">&#x21BB;</div>
+        <div class="pipeline-node__name">/autopilot</div>
+        <div class="pipeline-node__type">Skill</div>
+      </div>
+      <div class="pipeline-arrow">&rarr;</div>
+      <div class="pipeline-gate pipeline-gate--dod">
+        <div>DOD</div>
+        <div class="pipeline-gate__label">Exit gate</div>
+      </div>
+      <div class="pipeline-arrow">&rarr;</div>
+      <div class="pipeline-node pipeline-node--file">
+        <div class="pipeline-node__icon">&#x2714;</div>
+        <div class="pipeline-node__name">DONE-Today.md</div>
+        <div class="pipeline-node__type">Completed</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ SKILL PORTFOLIO ═══════════════════════ -->
+<div class="divider"></div>
+
+<section class="skills-section container">
+  <div class="reveal">
+    <div class="section-label">Skills</div>
+    <h2 class="section-title">44 skills under the /sh: namespace</h2>
+    <p class="section-desc">
+      Each skill is a self-contained capability with its own context, instructions, and validation.
+      Skills compose into pipelines, panels, and loops.
+    </p>
+  </div>
+
+  <div class="skill-categories reveal">
+
+    <div class="skill-category">
+      <div class="skill-category__header">
+        <span class="skill-category__name">Pipeline</span>
+        <span class="skill-category__count">10</span>
+      </div>
+      <div class="skill-category__items">
+        <span class="skill-chip">/triage</span>
+        <span class="skill-chip">/workflow</span>
+        <span class="skill-chip">/spec-review</span>
+        <span class="skill-chip">/dor</span>
+        <span class="skill-chip">/queue</span>
+        <span class="skill-chip">/backlog</span>
+        <span class="skill-chip">/inbox</span>
+        <span class="skill-chip">/prioritize</span>
+        <span class="skill-chip">/schedule</span>
+        <span class="skill-chip">/promote</span>
+      </div>
+    </div>
+
+    <div class="skill-category">
+      <div class="skill-category__header">
+        <span class="skill-category__name">Loop Control</span>
+        <span class="skill-category__count">6</span>
+      </div>
+      <div class="skill-category__items">
+        <span class="skill-chip">/autopilot</span>
+        <span class="skill-chip">/dor</span>
+        <span class="skill-chip">/dod</span>
+        <span class="skill-chip">/loop</span>
+        <span class="skill-chip">/retro</span>
+        <span class="skill-chip">/halt</span>
+      </div>
+    </div>
+
+    <div class="skill-category">
+      <div class="skill-category__header">
+        <span class="skill-category__name">Implementation</span>
+        <span class="skill-category__count">8</span>
+      </div>
+      <div class="skill-category__items">
+        <span class="skill-chip">/tdd</span>
+        <span class="skill-chip">/implement</span>
+        <span class="skill-chip">/verify</span>
+        <span class="skill-chip">/review</span>
+        <span class="skill-chip">/finish</span>
+        <span class="skill-chip">/refactor</span>
+        <span class="skill-chip">/deploy</span>
+        <span class="skill-chip">/hotfix</span>
+      </div>
+    </div>
+
+    <div class="skill-category">
+      <div class="skill-category__header">
+        <span class="skill-category__name">Analysis</span>
+        <span class="skill-category__count">10</span>
+      </div>
+      <div class="skill-category__items">
+        <span class="skill-chip">/analyze</span>
+        <span class="skill-chip">/debug</span>
+        <span class="skill-chip">/research</span>
+        <span class="skill-chip">/explain</span>
+        <span class="skill-chip">/estimate</span>
+        <span class="skill-chip">/audit</span>
+        <span class="skill-chip">/trace</span>
+        <span class="skill-chip">/profile</span>
+        <span class="skill-chip">/diagnose</span>
+        <span class="skill-chip">/benchmark</span>
+      </div>
+    </div>
+
+    <div class="skill-category">
+      <div class="skill-category__header">
+        <span class="skill-category__name">Expert Panels</span>
+        <span class="skill-category__count">2</span>
+      </div>
+      <div class="skill-category__items">
+        <span class="skill-chip">/spec-panel</span>
+        <span class="skill-chip">/business-panel</span>
+      </div>
+    </div>
+
+    <div class="skill-category">
+      <div class="skill-category__header">
+        <span class="skill-category__name">Meta / Orchestration</span>
+        <span class="skill-category__count">8</span>
+      </div>
+      <div class="skill-category__items">
+        <span class="skill-chip">/parallel</span>
+        <span class="skill-chip">/worktree</span>
+        <span class="skill-chip">/ralph</span>
+        <span class="skill-chip">/orchestrator</span>
+        <span class="skill-chip">/context</span>
+        <span class="skill-chip">/memory</span>
+        <span class="skill-chip">/sync</span>
+        <span class="skill-chip">/tether</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════ EXPERT PANELS ═══════════════════════ -->
+<div class="divider"></div>
+
+<section class="container">
+  <div class="reveal">
+    <div class="section-label">Expert Panels</div>
+    <h2 class="section-title">19 simulated domain experts</h2>
+    <p class="section-desc">
+      Two panels provide structured review through simulated expert personas.
+      Each panelist scores independently. Gate thresholds enforce minimum quality.
+    </p>
+  </div>
+
+  <div class="panels-grid reveal">
+
+    <div class="panel-card">
+      <div class="panel-card__badge">Engineering Review</div>
+      <h3 class="panel-card__title">spec-panel</h3>
+      <p class="panel-card__desc">
+        10 engineering experts review specifications, architecture decisions, and implementation quality.
+        Scores aggregated, consensus required.
+      </p>
+      <div class="panel-members">
+        <div class="panel-member">
+          <div class="panel-member__avatar">KW</div>
+          <span class="panel-member__name">Karl Wiegers</span>
+        </div>
+        <div class="panel-member">
+          <div class="panel-member__avatar">MN</div>
+          <span class="panel-member__name">Michael Nygard</span>
+        </div>
+        <div class="panel-member">
+          <div class="panel-member__avatar">MF</div>
+          <span class="panel-member__name">Martin Fowler</span>
+        </div>
+        <div class="panel-member">
+          <div class="panel-member__avatar">RP</div>
+          <span class="panel-member__name">Rebecca Parsons</span>
+        </div>
+        <div class="panel-member__more">+ 6 more engineering experts</div>
+      </div>
+      <div class="panel-gate">
+        <span>Gate threshold:</span>
+        <strong>&ge; 7.0</strong>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-card__badge">Strategy Review</div>
+      <h3 class="panel-card__title">business-panel</h3>
+      <p class="panel-card__desc">
+        9 business strategy experts evaluate market fit, positioning, go-to-market, and commercial viability.
+        Independent scoring with divergence tracking.
+      </p>
+      <div class="panel-members">
+        <div class="panel-member">
+          <div class="panel-member__avatar">SB</div>
+          <span class="panel-member__name">Steve Blank</span>
+        </div>
+        <div class="panel-member">
+          <div class="panel-member__avatar">AM</div>
+          <span class="panel-member__name">Ash Maurya</span>
+        </div>
+        <div class="panel-member">
+          <div class="panel-member__avatar">DP</div>
+          <span class="panel-member__name">David Perell</span>
+        </div>
+        <div class="panel-member__more">+ 6 more business strategists</div>
+      </div>
+      <div class="panel-gate">
+        <span>Gate threshold:</span>
+        <strong>&ge; 7.0</strong>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════ MULTI-AGENT ARCHITECTURE ═══════════════════════ -->
+<section class="multiagent-section">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Architecture</div>
+      <h2 class="section-title">Multi-agent orchestration</h2>
+      <p class="section-desc">
+        A central governance repo syncs skills to all projects. Multiple AI agents connect through
+        Tether, a message bus with integrity verification. Each project runs its own autopilot.
+      </p>
+    </div>
+
+    <div class="multiagent-diagram reveal">
+
+      <!-- Left: Agent Nodes -->
+      <div class="agent-sidebar">
+        <div class="agent-node">
+          <div class="agent-node__name">Claude</div>
+          <span class="agent-node__status agent-node__status--active">active</span>
+        </div>
+        <div class="agent-node">
+          <div class="agent-node__name">Gemini</div>
+          <span class="agent-node__status agent-node__status--stub">stub</span>
+        </div>
+        <div class="agent-node">
+          <div class="agent-node__name">ChatGPT</div>
+          <span class="agent-node__status agent-node__status--stub">stub</span>
+        </div>
+      </div>
+
+      <!-- Center: Governance Hub -->
+      <div class="agent-hub">
+        <h3 class="agent-hub__title">Governance Repo</h3>
+        <p class="agent-hub__desc">Central authority. Skills, patterns, and quality gates synced to every connected project.</p>
+        <div class="agent-hub__items">
+          <span class="flow-node flow-node--highlight">44 skills</span>
+          <span class="flow-node">DOR/DOD</span>
+          <span class="flow-node">KNOWN_PATTERNS</span>
+          <span class="flow-node">Expert Panels</span>
+          <span class="flow-node">Loop definitions</span>
+          <span class="flow-node">Quality gates</span>
+        </div>
+      </div>
+
+      <!-- Right: Tether + Projects -->
+      <div class="agent-sidebar">
+        <div class="tether-card">
+          <h4 class="tether-card__title">Tether</h4>
+          <div class="tether-card__items">
+            <span class="tether-item">SQLite persistence</span>
+            <span class="tether-item">BLAKE3 integrity</span>
+            <span class="tether-item">13 MCP tools</span>
+            <span class="tether-item">HTTP relay</span>
+          </div>
+        </div>
+        <div class="project-list">
+          <div class="project-item">
+            <div class="project-item__dot"></div>
+            <span class="project-item__name">SVG-PAINT</span>
+            <span class="project-item__status">autopilot</span>
+          </div>
+          <div class="project-item">
+            <div class="project-item__dot"></div>
+            <span class="project-item__name">KETO</span>
+            <span class="project-item__status">autopilot</span>
+          </div>
+          <div class="project-item">
+            <div class="project-item__dot" style="background: var(--accent-amber);"></div>
+            <span class="project-item__name">Nanobot</span>
+            <span class="project-item__status">manual</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ QUALITY GATES ═══════════════════════ -->
+<div class="divider"></div>
+
+<section class="container">
+  <div class="reveal">
+    <div class="section-label">Quality</div>
+    <h2 class="section-title">Five-layer quality stack</h2>
+    <p class="section-desc">
+      No commit without greenlight. No bypass, no override, no exceptions.
+      Quality is structural, not aspirational.
+    </p>
+  </div>
+
+  <div class="gates-stack reveal">
+
+    <div class="gate-layer">
+      <div class="gate-layer__number">01</div>
+      <div class="gate-layer__content">
+        <div class="gate-layer__title">Definition of Ready (DOR)</div>
+        <div class="gate-layer__desc">Entry criteria. Every task must have user stories, acceptance criteria, and test files defined before implementation begins.</div>
+      </div>
+      <span class="gate-layer__badge">Entry</span>
+    </div>
+
+    <div class="gate-layer">
+      <div class="gate-layer__number">02</div>
+      <div class="gate-layer__content">
+        <div class="gate-layer__title">Greenlight Protocol</div>
+        <div class="gate-layer__desc">Automated validation suite. Runs all checks, type verification, pattern scanning, and integration tests in a single pass.</div>
+      </div>
+      <span class="gate-layer__badge">Automated</span>
+    </div>
+
+    <div class="gate-layer">
+      <div class="gate-layer__number">03</div>
+      <div class="gate-layer__content">
+        <div class="gate-layer__title">Cleanup Sub-Loop</div>
+        <div class="gate-layer__desc">Auto-fix Low severity findings. Halt on Medium+ for human review. Never downgrade, never bypass.</div>
+      </div>
+      <span class="gate-layer__badge">Enforcement</span>
+    </div>
+
+    <div class="gate-layer">
+      <div class="gate-layer__number">04</div>
+      <div class="gate-layer__content">
+        <div class="gate-layer__title">Definition of Done (DOD)</div>
+        <div class="gate-layer__desc">Exit criteria. App runs locally, existing functionality intact, tests pass, batch limits respected, atomic commit with audit trail.</div>
+      </div>
+      <span class="gate-layer__badge">Exit</span>
+    </div>
+
+    <div class="gate-layer">
+      <div class="gate-layer__number">05</div>
+      <div class="gate-layer__content">
+        <div class="gate-layer__title">KNOWN_PATTERNS.md</div>
+        <div class="gate-layer__desc">31 anti-patterns across 8 categories. Scanned on every commit. Re-introducing a known pattern is a quality regression, full stop.</div>
+      </div>
+      <span class="gate-layer__badge">Scan</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════ TECH STACK ═══════════════════════ -->
+<div class="divider"></div>
+
+<section class="container">
+  <div class="reveal">
+    <div class="section-label">Stack</div>
+    <h2 class="section-title">Deliberately minimal</h2>
+    <p class="section-desc">
+      No orchestration platforms, no cloud services, no vendor lock-in.
+      Everything runs locally. Everything is inspectable. Everything is text.
+    </p>
+  </div>
+
+  <div class="tech-grid reveal">
+    <div class="tech-item">
+      <div class="tech-item__icon">&#x1D56E;</div>
+      <div>
+        <div class="tech-item__name">Python 3.11+</div>
+        <div class="tech-item__role">Core runtime</div>
+      </div>
+    </div>
+    <div class="tech-item">
+      <div class="tech-item__icon">&#x25C8;</div>
+      <div>
+        <div class="tech-item__name">Claude Code</div>
+        <div class="tech-item__role">Agent runtime</div>
+      </div>
+    </div>
+    <div class="tech-item">
+      <div class="tech-item__icon">&#x26D3;</div>
+      <div>
+        <div class="tech-item__name">Tether</div>
+        <div class="tech-item__role">SQLite + BLAKE3 bus</div>
+      </div>
+    </div>
+    <div class="tech-item">
+      <div class="tech-item__icon">&#x2756;</div>
+      <div>
+        <div class="tech-item__name">Markdown</div>
+        <div class="tech-item__role">Pipeline config</div>
+      </div>
+    </div>
+    <div class="tech-item">
+      <div class="tech-item__icon">&#x2B19;</div>
+      <div>
+        <div class="tech-item__name">MCP Protocol</div>
+        <div class="tech-item__role">Tool interface</div>
+      </div>
+    </div>
+    <div class="tech-item">
+      <div class="tech-item__icon">&#x2442;</div>
+      <div>
+        <div class="tech-item__name">Git</div>
+        <div class="tech-item__role">Version control + sync</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ COMPARISON ═══════════════════════ -->
+<div class="divider"></div>
+
+<section class="container">
+  <div class="reveal">
+    <div class="section-label">Outlook</div>
+    <h2 class="section-title">Shepherd vs. the frameworks</h2>
+    <p class="section-desc">
+      Shepherd is not a code framework &mdash; it is a governance system.
+      LangGraph and CrewAI control the agent. Shepherd gives the agent rules.
+    </p>
+  </div>
+
+  <div class="comparison-table reveal">
+    <div class="comp-row comp-row--header">
+      <div class="comp-cell comp-cell--dim">Dimension</div>
+      <div class="comp-cell">LangGraph</div>
+      <div class="comp-cell">CrewAI</div>
+      <div class="comp-cell comp-cell--accent">Shepherd</div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-cell comp-cell--dim">What is it?</div>
+      <div class="comp-cell">Python library &mdash; graph runtime for LLM chains</div>
+      <div class="comp-cell">Python library &mdash; multi-agent orchestration</div>
+      <div class="comp-cell comp-cell--accent">Markdown governance framework &mdash; no code, only conventions + files</div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-cell comp-cell--dim">Installed as</div>
+      <div class="comp-cell"><code>pip install langgraph</code></div>
+      <div class="comp-cell"><code>pip install crewai</code></div>
+      <div class="comp-cell comp-cell--accent">Markdown files in the repo</div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-cell comp-cell--dim">Agent Runtime</div>
+      <div class="comp-cell">Own (LangGraph controls the agent)</div>
+      <div class="comp-cell">Own (CrewAI controls the crew)</div>
+      <div class="comp-cell comp-cell--accent">External &mdash; Claude Code, Cursor, Codex etc. Shepherd does not control the agent</div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-cell comp-cell--dim">Paradigm</div>
+      <div class="comp-cell">State machine (nodes + edges)</div>
+      <div class="comp-cell">Role delegation (agents with backstory)</div>
+      <div class="comp-cell comp-cell--accent">Scrumban pipeline &mdash; INBOX &rarr; BACKLOG &rarr; TODO &rarr; DONE with quality gates</div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-cell comp-cell--dim">Control Layer</div>
+      <div class="comp-cell">Code (Python graph definition)</div>
+      <div class="comp-cell">Code (Python agent/task definition)</div>
+      <div class="comp-cell comp-cell--accent">Textual convention &mdash; agent reads CLAUDE-LOOP.md and follows 14 steps</div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-cell comp-cell--dim">Quality Assurance</div>
+      <div class="comp-cell">None built-in</div>
+      <div class="comp-cell">None built-in</div>
+      <div class="comp-cell comp-cell--accent">Core feature &mdash; DOR, DOD, Cleanup Sub-Loop, Stall Detection</div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-cell comp-cell--dim">Memory</div>
+      <div class="comp-cell">State-dict per graph run</div>
+      <div class="comp-cell">Shared memory between agents</div>
+      <div class="comp-cell comp-cell--accent">Persistent across sessions &mdash; Memory Bank, KNOWN_PATTERNS, QUALITY_AUDIT</div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-cell comp-cell--dim">Multi-Agent</div>
+      <div class="comp-cell">Subgraphs</div>
+      <div class="comp-cell">First-class crews</div>
+      <div class="comp-cell comp-cell--accent">Orchestrator with capability scoring (@agent-routing)</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Autonomy Spectrum ── -->
+<section class="container" style="margin-top: 2rem;">
+  <div class="reveal">
+    <div class="section-label">Philosophy</div>
+    <h2 class="section-title">Control WHAT and WHEN, not HOW</h2>
+    <p class="section-desc">
+      Shepherd separates the pipeline (deterministic) from execution (autonomous).
+      Five layers, each with its own degree of freedom.
+    </p>
+  </div>
+
+  <div class="autonomy-stack reveal">
+    <div class="autonomy-row">
+      <div class="autonomy-label">Pipeline Flow</div>
+      <div class="autonomy-bar" style="--bar-width: 10%; --bar-color: var(--accent-teal);">
+        <div class="autonomy-bar__fill"></div>
+      </div>
+      <div class="autonomy-tag autonomy-tag--det">Deterministic</div>
+      <div class="autonomy-desc">Fixed order, no shortcuts. Graduation only through quality gates.</div>
+    </div>
+    <div class="autonomy-row">
+      <div class="autonomy-label">Inner Loop</div>
+      <div class="autonomy-bar" style="--bar-width: 35%; --bar-color: var(--accent-blue);">
+        <div class="autonomy-bar__fill"></div>
+      </div>
+      <div class="autonomy-tag autonomy-tag--semi">Semi-deterministic</div>
+      <div class="autonomy-desc">14 steps always the same, but agent decides how to execute each.</div>
+    </div>
+    <div class="autonomy-row">
+      <div class="autonomy-label">Routing</div>
+      <div class="autonomy-bar" style="--bar-width: 25%; --bar-color: var(--accent-violet);">
+        <div class="autonomy-bar__fill"></div>
+      </div>
+      <div class="autonomy-tag autonomy-tag--alg">Algorithmic</div>
+      <div class="autonomy-desc">Keyword scoring + capability matching. No LLM decides routing.</div>
+    </div>
+    <div class="autonomy-row">
+      <div class="autonomy-label">Execution</div>
+      <div class="autonomy-bar" style="--bar-width: 85%; --bar-color: var(--accent-amber);">
+        <div class="autonomy-bar__fill"></div>
+      </div>
+      <div class="autonomy-tag autonomy-tag--auto">Autonomous</div>
+      <div class="autonomy-desc">Agent chooses tools, files, approach. Skills provide guardrails only.</div>
+    </div>
+    <div class="autonomy-row">
+      <div class="autonomy-label">Kill Switch</div>
+      <div class="autonomy-bar" style="--bar-width: 5%; --bar-color: var(--accent-rose);">
+        <div class="autonomy-bar__fill"></div>
+      </div>
+      <div class="autonomy-tag autonomy-tag--det">Binary halt</div>
+      <div class="autonomy-desc">.autopilot = pause &rarr; immediate stop. Medium+ findings &rarr; auto-pause.</div>
+    </div>
+  </div>
+
+  <div class="comp-verdict reveal">
+    <div class="verdict-item">
+      <div class="verdict-item__label">LangGraph</div>
+      <div class="verdict-item__desc">More deterministic at the execution level &mdash; graph topology is fixed</div>
+    </div>
+    <div class="verdict-item">
+      <div class="verdict-item__label">CrewAI</div>
+      <div class="verdict-item__desc">More autonomous at the routing level &mdash; LLM delegates freely</div>
+    </div>
+    <div class="verdict-item verdict-item--highlight">
+      <div class="verdict-item__label">Shepherd</div>
+      <div class="verdict-item__desc">Most rigid at the pipeline level, most free at the execution level</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ FOOTER ═══════════════════════ -->
+<div class="divider"></div>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer__logo">Shepherd</div>
+    <div class="footer__tagline">Unified AI Agent Governance Framework</div>
+    <p class="footer__desc">
+      Born from production pain, not theory. Four independent systems merged into one governance layer
+      that enables a single developer to sustain the output normally requiring a small team &mdash;
+      through structured governance, not heroic effort.
+    </p>
+    <div class="footer__copy">
+      AgentFlow + Superpowers + SuperClaude + Ralph Loop &rarr; Shepherd
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ── Scroll Reveal ──
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, {
+    threshold: 0.1,
+    rootMargin: '0px 0px -60px 0px'
+  });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // ── Staggered children animation ──
+  const staggerObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const children = entry.target.children;
+        Array.from(children).forEach((child, i) => {
+          child.style.opacity = '0';
+          child.style.transform = 'translateY(20px)';
+          child.style.transition = `opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${i * 0.1}s, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${i * 0.1}s`;
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              child.style.opacity = '1';
+              child.style.transform = 'translateY(0)';
+            });
+          });
+        });
+        staggerObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.origin-grid, .skill-categories, .tech-grid, .panels-grid').forEach(el => {
+    staggerObserver.observe(el);
+  });
+
+  // ── Subtle parallax on hero glows ──
+  document.addEventListener('mousemove', (e) => {
+    const x = (e.clientX / window.innerWidth - 0.5) * 20;
+    const y = (e.clientY / window.innerHeight - 0.5) * 20;
+    document.querySelectorAll('.hero__glow').forEach((glow, i) => {
+      const factor = i === 0 ? 1 : -0.6;
+      glow.style.transform = `translate(${x * factor}px, ${y * factor}px)`;
+    });
+  });
+</script>
+</body>
+</html>
