@@ -1,0 +1,62 @@
+name: spec-panel
+description: "Multi-expert specification review — quality gate for Refining → Ready"
+
+modes:
+  - discussion
+  - critique
+  - socratic
+
+focus-areas:
+  - name: requirements
+    description: "Requirement clarity, completeness, testability"
+    lead: karl-wiegers
+    experts: [karl-wiegers, gojko-adzic, alistair-cockburn]
+
+  - name: architecture
+    description: "Interface design, boundaries, scalability, patterns"
+    lead: martin-fowler
+    experts: [martin-fowler, sam-newman, gregor-hohpe, michael-nygard]
+
+  - name: testing
+    description: "Test strategy, coverage, edge cases, acceptance criteria"
+    lead: lisa-crispin
+    experts: [lisa-crispin, janet-gregory, gojko-adzic]
+
+  - name: compliance
+    description: "Regulatory coverage, security, operational requirements"
+    lead: karl-wiegers
+    experts: [karl-wiegers, michael-nygard, kelsey-hightower]
+
+default-experts: [karl-wiegers, gojko-adzic, martin-fowler, lisa-crispin]
+
+max-experts: 6
+
+auto-select:
+  - keywords: [api, rest, graphql, microservice, distributed]
+    add: [sam-newman]
+  - keywords: [cloud, deploy, k8s, kubernetes, docker, infrastructure]
+    add: [kelsey-hightower]
+  - keywords: [messaging, event, queue, pubsub, integration]
+    add: [gregor-hohpe]
+  - keywords: [reliability, failure, circuit, resilience, production]
+    add: [michael-nygard]
+
+scoring:
+  min: 0
+  max: 10
+  pass-threshold: 7.0
+  dimensions:
+    - name: clarity
+      description: "Language precision and understandability"
+    - name: completeness
+      description: "Coverage of essential specification elements"
+    - name: testability
+      description: "Measurability and validation capability"
+    - name: consistency
+      description: "Internal coherence and contradiction detection"
+
+output:
+  default-format: standard
+  include-scores: true
+  include-roadmap: true
+  include-consensus: true

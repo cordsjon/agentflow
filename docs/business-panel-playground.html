@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Business Panel — Strategic Analysis</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2333;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --text-bright: #f0f6fc;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --green-dim: #238636;
+    --yellow: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --orange: #f0883e;
+    --cyan: #39d2c0;
+    --pink: #f778ba;
+    --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .header { padding: 20px 32px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; }
+  .header h1 { font-size: 20px; color: var(--text-bright); font-weight: 600; }
+  .header .subtitle { font-size: 13px; color: var(--text-dim); }
+  .header .back { font-size: 13px; color: var(--accent); text-decoration: none; margin-left: auto; font-family: var(--mono); }
+  .header .back:hover { text-decoration: underline; }
+
+  .controls { padding: 12px 32px; border-bottom: 1px solid var(--border); background: var(--surface); display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+  .control-group { display: flex; align-items: center; gap: 8px; }
+  .control-group label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .ctrl-btn { padding: 5px 12px; border-radius: 5px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 12px; cursor: pointer; font-family: var(--sans); transition: all 0.15s; }
+  .ctrl-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .ctrl-btn.active { border-color: var(--accent); background: rgba(88,166,255,0.1); color: var(--accent); }
+
+  .main { display: grid; grid-template-columns: 260px 1fr; height: calc(100vh - 100px); }
+
+  .sidebar { border-right: 1px solid var(--border); overflow-y: auto; background: var(--surface); }
+  .sidebar-title { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; padding: 16px 16px 8px; font-weight: 600; }
+  .expert-card { padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: all 0.15s; position: relative; }
+  .expert-card:hover { background: var(--surface2); }
+  .expert-card.active { background: var(--surface2); border-left: 3px solid var(--orange); }
+  .expert-card.active .expert-name { color: var(--orange); }
+  .expert-card.dimmed { opacity: 0.35; }
+  .expert-name { font-size: 14px; font-weight: 600; color: var(--text-bright); margin-bottom: 2px; }
+  .expert-domain { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+  .expert-badge { position: absolute; top: 12px; right: 12px; font-size: 9px; padding: 2px 6px; border-radius: 3px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+  .badge-default { background: rgba(240,136,62,0.2); color: var(--orange); }
+  .badge-auto { background: rgba(188,140,255,0.15); color: var(--purple); }
+  .token-cost { font-size: 10px; color: var(--text-dim); font-family: var(--mono); margin-top: 3px; }
+
+  .content { overflow-y: auto; padding: 24px 32px; }
+  .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+  .card.full { grid-column: 1 / -1; }
+  .card h3 { font-size: 13px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card h3 .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .tag-comp { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .tag-grow { background: rgba(63,185,80,0.15); color: var(--green); }
+  .tag-risk { background: rgba(248,81,73,0.15); color: var(--red); }
+  .tag-comm { background: rgba(210,153,34,0.15); color: var(--yellow); }
+  .tag-mode { background: rgba(240,136,62,0.15); color: var(--orange); }
+
+  .body { font-size: 14px; line-height: 1.7; color: var(--text); }
+  .body code { font-family: var(--mono); font-size: 12px; background: var(--bg); padding: 2px 6px; border-radius: 4px; color: var(--cyan); }
+  .body pre { font-family: var(--mono); font-size: 12px; background: var(--bg); padding: 14px; border-radius: 6px; overflow-x: auto; margin: 10px 0; line-height: 1.6; border: 1px solid var(--border); white-space: pre-wrap; }
+  .body ul { padding-left: 18px; }
+  .body li { margin-bottom: 4px; }
+  .body li::marker { color: var(--text-dim); }
+  .hl { color: var(--accent); font-weight: 500; }
+  .warn { color: var(--yellow); }
+  .ok { color: var(--green); }
+  .danger { color: var(--red); }
+  .dim { color: var(--text-dim); }
+  .purple { color: var(--purple); }
+  .orange { color: var(--orange); }
+
+  .quote { border-left: 3px solid var(--orange); padding: 12px 16px; background: rgba(240,136,62,0.05); border-radius: 0 6px 6px 0; margin: 10px 0; font-style: italic; color: var(--text-bright); font-size: 14px; line-height: 1.6; }
+  .quote .attribution { font-style: normal; font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+
+  .diff-label { display: inline-block; font-size: 11px; font-family: var(--mono); padding: 2px 8px; border-radius: 3px; margin-right: 4px; }
+  .diff-no { background: rgba(248,81,73,0.1); color: var(--red); }
+  .diff-yes { background: rgba(63,185,80,0.1); color: var(--green); }
+
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; }
+    .sidebar { max-height: 200px; }
+    .content-grid { grid-template-columns: 1fr; }
+    .card.full { grid-column: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div><span style="font-size:24px;">📊</span></div>
+  <div>
+    <h1>/sc:business-panel — Strategic Business Analysis</h1>
+    <div class="subtitle">AI-facilitated panel discussion between 9 renowned business thought leaders — analysis only, no implementation</div>
+  </div>
+  <div style="margin-left:auto;display:flex;gap:8px;">
+    <a class="back" href="pipeline-playground.html">&larr; Pipeline</a>
+    <a class="back" href="spec-panel-playground.html" style="color:var(--accent);">👥 Spec Panel</a>
+  </div>
+</div>
+
+<div class="controls" id="controls"></div>
+
+<div class="main">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="content" id="content"></div>
+</div>
+
+<script>
+const EXPERTS = {
+  'michael-porter': {
+    name: 'Michael Porter', domain: 'Competitive Strategy', tokens: 300,
+    methodology: 'Five Forces, value chain analysis, generic strategies (cost/differentiation/focus)',
+    voice: "What is your competitive advantage, and is it sustainable? Where are the Five Forces pressuring you?",
+    perspective: `Porter evaluates every business through structural industry analysis. Profitability isn't about working harder — it's about industry structure and positioning within it. He maps supplier power, buyer power, threat of substitutes, threat of new entrants, and competitive rivalry to assess whether a business can sustain margins.`,
+    looksFor: ['Clear competitive positioning (cost leadership, differentiation, or focus)', 'Understanding of industry forces affecting profitability', 'Value chain analysis — where value is created and captured'],
+    redFlags: ['"We compete on everything" (stuck in the middle)', 'No awareness of substitute products or new entrants', 'Competing on price without a structural cost advantage'],
+    approves: ['Positioning is clear and defensible', 'Industry forces are analyzed and strategy addresses them', 'Value chain shows where competitive advantage is built'],
+    modes: { discussion: '"Let\'s map the Five Forces for this market"', debate: '"Being cheaper isn\'t a strategy unless you have a structural cost advantage"', socratic: '"What would a new entrant need to do to take your market share?"' },
+    focusAreas: ['competitive'], isDefault: true
+  },
+  'clayton-christensen': {
+    name: 'Clayton Christensen', domain: 'Disruption & Innovation', tokens: 300,
+    methodology: 'Disruption Theory, Jobs-to-be-Done framework',
+    voice: "What job is the customer hiring this product to do? Is this sustaining or disruptive innovation?",
+    perspective: `Christensen separates sustaining innovation (better-faster-cheaper for existing customers) from disruptive innovation (worse on traditional metrics but serving an overlooked market). He evaluates through Jobs-to-be-Done — customers don't buy products, they hire them to make progress in their lives.`,
+    looksFor: ['Clear articulation of the "job" the customer is hiring the product for', 'Whether innovation is sustaining or disruptive (and appropriate strategy for each)', 'Market positioning relative to incumbents and overlooked segments'],
+    redFlags: ['Trying to out-feature an incumbent on their own turf (sustaining trap)', 'No clarity on target customer\'s "job to be done"', 'Conflating product features with customer progress'],
+    approves: ['The job-to-be-done is clearly articulated with evidence', 'Strategy matches the innovation type (sustaining vs. disruptive)', 'Market entry targets an overlooked or overserved segment'],
+    modes: { discussion: '"Let\'s identify the job — what progress is the customer trying to make?"', debate: '"You\'re playing a sustaining game against an incumbent with more resources"', socratic: '"Who is NOT served by the current market leaders? Why?"' },
+    focusAreas: ['competitive'], isDefault: true
+  },
+  'peter-drucker': {
+    name: 'Peter Drucker', domain: 'Management & Effectiveness', tokens: 280,
+    methodology: 'Management by Objectives (MBO), knowledge worker productivity, effectiveness principles',
+    voice: "What is the purpose of this business? If you weren't already doing this, would you start it today?",
+    perspective: `Drucker cuts through complexity with first-principles questions. He asks what business you're really in, who your customer actually is, and what they consider value. He challenges organizations to abandon what no longer works, focus on strengths, and measure what matters rather than what's easy to count.`,
+    looksFor: ['Clear definition of purpose and customer', 'Focus on effectiveness (doing the right things) over efficiency (doing things right)', 'Measurable objectives tied to customer value'],
+    redFlags: ['Activity without measurable outcomes', 'Optimizing processes that shouldn\'t exist', 'No clear answer to "who is our customer and what do they value?"'],
+    approves: ['Purpose is clear and customer-centric', 'Objectives are measurable and prioritized', 'Resources are allocated to strengths, not propping up weaknesses'],
+    modes: { discussion: '"What is the one thing this organization does that no one else can?"', debate: '"You\'re measuring activity, not results"', socratic: '"If you started fresh today, would you build this the same way?"' },
+    focusAreas: ['growth'], isDefault: true
+  },
+  'seth-godin': {
+    name: 'Seth Godin', domain: 'Marketing & Tribe Building', tokens: 280,
+    methodology: 'Permission marketing, Purple Cow, tribe leadership, smallest viable audience',
+    voice: "Is this remarkable enough that someone would tell a friend about it? Who is your smallest viable audience?",
+    perspective: `Godin rejects mass marketing and average products. He looks for the "Purple Cow" — something remarkable enough to spread on its own. He pushes businesses toward their smallest viable audience rather than trying to please everyone.`,
+    looksFor: ['A clearly defined smallest viable audience', 'Something remarkable — worth talking about', 'Permission-based relationship with customers (trust, not interruption)'],
+    redFlags: ['"Our target market is everyone"', 'Unremarkable products competing on price alone', 'Interruption-based marketing strategy (ads-first, value-second)'],
+    approves: ['Target audience is specific and passionate', 'Product has a "Purple Cow" — a reason to be talked about', 'Growth strategy relies on earning trust, not buying attention'],
+    modes: { discussion: '"Who would miss this if it were gone? That\'s your tribe"', debate: '"Average products for average people is a race to the bottom"', socratic: '"Would your best customer recommend this to a friend? Why or why not?"' },
+    focusAreas: ['growth']
+  },
+  'wckim-mauborgne': {
+    name: 'Kim & Mauborgne', domain: 'Blue Ocean Strategy', tokens: 300,
+    methodology: 'Blue Ocean Strategy, value innovation, strategy canvas, four actions framework',
+    voice: "Are you competing in a red ocean or creating a blue one? What can you eliminate, reduce, raise, or create?",
+    perspective: `Kim & Mauborgne challenge the assumption that you must compete in existing markets. They push businesses to create uncontested market space by simultaneously pursuing differentiation AND low cost. Their Four Actions Framework restructures industry assumptions rather than accepting them.`,
+    looksFor: ['Opportunity to create uncontested market space', 'Four Actions analysis — what to eliminate, reduce, raise, create', 'Value innovation — breaking the cost-value trade-off'],
+    redFlags: ['Head-to-head competition with established players on their terms', 'Accepting industry boundaries as given', 'Incremental improvements instead of strategic leaps'],
+    approves: ['Strategy creates new demand rather than fighting over existing demand', 'Four Actions Framework applied — clear eliminate/reduce/raise/create choices', 'Value curve is visually distinct from competitors'],
+    modes: { discussion: '"Let\'s draw the strategy canvas — how does your value curve differ?"', debate: '"You\'re competing in a red ocean — what would a blue ocean look like?"', socratic: '"What does your industry take for granted that could be eliminated?"' },
+    focusAreas: ['competitive']
+  },
+  'jim-collins': {
+    name: 'Jim Collins', domain: 'Organizational Excellence', tokens: 280,
+    methodology: 'Good to Great, flywheel effect, Hedgehog Concept, Level 5 Leadership',
+    voice: "What is your Hedgehog Concept — the intersection of passion, capability, and economic engine?",
+    perspective: `Collins studies what separates great organizations from good ones. He looks for the Hedgehog Concept (intersection of what you're passionate about, what you can be best in the world at, and what drives your economic engine), the flywheel effect (consistent effort compounding over time), and disciplined people making disciplined decisions.`,
+    looksFor: ['Hedgehog Concept clarity — passion, capability, and economic driver aligned', 'Flywheel mechanics — does each action compound into the next?', 'Disciplined culture — consistency over heroics'],
+    redFlags: ['Chasing multiple opportunities without a unifying concept', 'Reliance on one-time events instead of compounding momentum', '"Fox" strategy (many things) instead of "Hedgehog" (one big thing done excellently)'],
+    approves: ['Hedgehog Concept is clear and guides resource allocation', 'Flywheel is identified and each turn feeds the next', 'Strategy favors discipline and consistency over brilliance and luck'],
+    modes: { discussion: '"What\'s the flywheel? How does each turn accelerate the next?"', debate: '"You\'re being a fox — chasing too many things instead of one great one"', socratic: '"What could you be the best in the world at? Not just good — the best?"' },
+    focusAreas: ['growth']
+  },
+  'nassim-taleb': {
+    name: 'Nassim Nicholas Taleb', domain: 'Risk & Antifragility', tokens: 320,
+    methodology: 'Antifragility, barbell strategy, skin in the game, black swan awareness',
+    voice: "What's your exposure to ruin? You're optimizing for the average case while ignoring tail risks.",
+    perspective: `Taleb distrusts predictions and plans that assume normality. He looks for fragility — systems that break under stress — and pushes toward antifragility — systems that gain from disorder. He evaluates strategies through asymmetry: what's the downside vs. upside?`,
+    looksFor: ['Asymmetric payoff profiles — limited downside, unlimited upside', 'Antifragility — does the system benefit from volatility and stress?', 'Skin in the game — do decision-makers bear the consequences?'],
+    redFlags: ['Fragile dependencies (single supplier, single revenue stream, single point of failure)', 'Plans that assume smooth, predictable conditions', 'Decision-makers with no downside exposure (no skin in the game)'],
+    approves: ['Strategy has convex payoffs (more upside than downside from volatility)', 'Key risks have explicit caps (barbell strategy)', 'Optionality is preserved — ability to change course cheaply'],
+    modes: { discussion: '"Where\'s the fragility? What breaks under stress?"', debate: '"Your plan assumes the future will look like the past — it won\'t"', socratic: '"What\'s the worst case? Not the likely worst — the actual worst?"' },
+    focusAreas: ['risk'], isDefault: true
+  },
+  'donella-meadows': {
+    name: 'Donella Meadows', domain: 'Systems Thinking', tokens: 280,
+    methodology: 'Systems dynamics, leverage points, feedback loops, mental models',
+    voice: "Where are the feedback loops? You're treating a system problem as a linear cause-and-effect.",
+    perspective: `Meadows sees everything as interconnected systems with stocks, flows, and feedback loops. She looks for the leverage points — places where a small intervention produces large systemic change.`,
+    looksFor: ['Feedback loops (reinforcing and balancing) that drive system behavior', 'Leverage points — where small changes produce outsized effects', 'System boundaries — what\'s included, what\'s excluded, and why'],
+    redFlags: ['Linear cause-and-effect thinking in a complex system', 'Ignoring delays between action and consequence', 'Optimizing a subsystem at the expense of the whole'],
+    approves: ['Key feedback loops are identified and understood', 'Intervention targets high-leverage points, not symptoms', 'Mental models are explicit and open to revision'],
+    modes: { discussion: '"Let\'s map the feedback loops — what reinforces what?"', debate: '"You\'re treating a symptom, not the system structure causing it"', socratic: '"What happens three steps downstream from this decision?"' },
+    focusAreas: ['risk']
+  },
+  'jeanluc-doumont': {
+    name: 'Jean-luc Doumont', domain: 'Structured Communication', tokens: 250,
+    methodology: 'Structured communication systems, audience-first design, visual clarity',
+    voice: "What is the one message you want your audience to take away? Everything else must serve that message.",
+    perspective: `Doumont applies engineering discipline to communication. Every document, slide, or presentation has one core message — everything included must support it, everything that doesn't must be removed.`,
+    looksFor: ['Single clear message per communication unit', 'Structure that makes the logic visible without reading every word', 'Audience-appropriate level of detail'],
+    redFlags: ['Documents that bury the conclusion at the end', 'Visual clutter — decorative elements that add no information', 'Writing for the author\'s ego instead of the reader\'s needs'],
+    approves: ['Core message is stated upfront and everything supports it', 'Structure is scannable — headings, hierarchy, and flow guide the reader', 'Nothing is included that doesn\'t serve the audience'],
+    modes: { discussion: '"What\'s the one sentence summary? Lead with that"', debate: '"This section doesn\'t serve your message — cut it"', socratic: '"If your reader has 30 seconds, what do they need to know?"' },
+    focusAreas: ['communication']
+  }
+};
+
+const FOCUS_AREAS = {
+  competitive: { name: 'Competitive', tag: 'tag-comp', lead: 'michael-porter', experts: ['michael-porter', 'clayton-christensen', 'wckim-mauborgne'], description: 'Competitive positioning, market forces, strategy' },
+  growth: { name: 'Growth', tag: 'tag-grow', lead: 'seth-godin', experts: ['seth-godin', 'jim-collins', 'peter-drucker'], description: 'Marketing, tribe building, scaling' },
+  risk: { name: 'Risk', tag: 'tag-risk', lead: 'nassim-taleb', experts: ['nassim-taleb', 'donella-meadows'], description: 'Risk management, antifragility, systems dynamics' },
+  communication: { name: 'Communication', tag: 'tag-comm', lead: 'jeanluc-doumont', experts: ['jeanluc-doumont', 'seth-godin'], description: 'Structured clarity, presentation, stakeholder messaging' }
+};
+
+// ── Example business being analyzed ──
+const EXAMPLE_BIZ = {
+  title: "SVG-PAINT — Etsy Digital Asset Platform",
+  summary: "Local-first SVG generation platform for Etsy sellers creating print-ready contrast cards and content sheets for children's products.",
+  details: [
+    "Target: Etsy digital download sellers (children's educational products)",
+    "Revenue: One-time license fee for the tool + optional template packs",
+    "Differentiator: Built-in accessibility (contrast checking by age range)",
+    "Tech: Local-first (no cloud dependency), batch generation (100K+ glyphs)",
+    "Market: Growing Etsy digital downloads niche (~$2B/year, 45% YoY growth)"
+  ]
+};
+
+let state = {
+  mode: 'discussion',
+  focus: 'competitive',
+  selectedExpert: 'michael-porter',
+  view: 'experts'
+};
+
+function render() {
+  renderControls();
+  renderSidebar();
+  renderContent();
+}
+
+function renderControls() {
+  const el = document.getElementById('controls');
+  const modes = ['discussion', 'debate', 'socratic'];
+  const focuses = Object.keys(FOCUS_AREAS);
+  el.innerHTML = `
+    <div class="control-group">
+      <label>Mode</label>
+      ${modes.map(m => `<button class="ctrl-btn ${state.mode === m ? 'active' : ''}" onclick="setMode('${m}')">${m}</button>`).join('')}
+    </div>
+    <div class="control-group">
+      <label>Focus</label>
+      ${focuses.map(f => `<button class="ctrl-btn ${state.focus === f ? 'active' : ''}" onclick="setFocus('${f}')">${FOCUS_AREAS[f].name}</button>`).join('')}
+    </div>
+    <div class="control-group" style="margin-left:auto;">
+      <label>View</label>
+      <button class="ctrl-btn ${state.view === 'experts' ? 'active' : ''}" onclick="setView('experts')">Experts</button>
+      <button class="ctrl-btn ${state.view === 'session' ? 'active' : ''}" onclick="setView('session')">Live Session</button>
+      <button class="ctrl-btn ${state.view === 'synthesis' ? 'active' : ''}" onclick="setView('synthesis')">Synthesis</button>
+    </div>
+  `;
+}
+
+function renderSidebar() {
+  const el = document.getElementById('sidebar');
+  const focus = FOCUS_AREAS[state.focus];
+  const activeExperts = focus.experts;
+  const sortedKeys = Object.keys(EXPERTS).sort((a, b) => {
+    const aA = activeExperts.includes(a), bA = activeExperts.includes(b);
+    if (aA && !bA) return -1;
+    if (!aA && bA) return 1;
+    return 0;
+  });
+
+  let html = `<div class="sidebar-title">Panel: ${focus.name} Focus (${activeExperts.length} experts)</div>`;
+  sortedKeys.forEach(key => {
+    const e = EXPERTS[key];
+    const isActive = activeExperts.includes(key);
+    const isDefault = e.isDefault;
+    let badge = '';
+    if (key === focus.lead) badge = '<span class="expert-badge badge-default">LEAD</span>';
+    else if (isDefault && isActive) badge = '<span class="expert-badge badge-default">DEFAULT</span>';
+
+    html += `<div class="expert-card ${state.selectedExpert === key ? 'active' : ''} ${!isActive ? 'dimmed' : ''}" onclick="selectExpert('${key}')">
+      ${badge}
+      <div class="expert-name">${e.name}</div>
+      <div class="expert-domain">${e.domain}</div>
+      <div class="token-cost">~${e.tokens} tokens</div>
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+
+function renderContent() {
+  const el = document.getElementById('content');
+  if (state.view === 'experts') renderExpertView(el);
+  else if (state.view === 'session') renderSessionView(el);
+  else renderSynthesisView(el);
+}
+
+function renderExpertView(el) {
+  const e = EXPERTS[state.selectedExpert];
+  const focus = FOCUS_AREAS[state.focus];
+  const isOnPanel = focus.experts.includes(state.selectedExpert);
+  const tagClass = state.focus === 'competitive' ? 'tag-comp' : state.focus === 'growth' ? 'tag-grow' : state.focus === 'risk' ? 'tag-risk' : 'tag-comm';
+
+  el.innerHTML = `<div class="content-grid">
+    <div class="card full">
+      <h3>${e.name} <span class="tag ${tagClass}">${FOCUS_AREAS[state.focus].name} Panel</span>
+      ${!isOnPanel ? '<span class="tag" style="background:rgba(248,81,73,0.15);color:var(--red);">Not on this panel</span>' : ''}
+      ${state.selectedExpert === focus.lead ? '<span class="tag" style="background:rgba(240,136,62,0.15);color:var(--orange);">Panel Lead</span>' : ''}</h3>
+      <div class="body">
+        <div class="quote">"${e.voice}"<div class="attribution">— ${e.name}, typical ${state.mode} mode response</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Perspective</h3>
+      <div class="body"><p>${e.perspective}</p></div>
+    </div>
+    <div class="card">
+      <h3>Methodology</h3>
+      <div class="body">
+        <p><code>${e.methodology}</code></p>
+        <p style="margin-top:12px;"><strong>In ${state.mode} mode:</strong></p>
+        <div class="quote" style="border-left-color:var(--purple);">${e.modes[state.mode]}</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Looks For <span class="tag tag-grow">approves</span></h3>
+      <div class="body"><ul>${e.looksFor.map(l => `<li><span class="ok">${l}</span></li>`).join('')}</ul></div>
+    </div>
+    <div class="card">
+      <h3>Red Flags <span class="tag tag-risk">rejects</span></h3>
+      <div class="body"><ul>${e.redFlags.map(r => `<li><span class="danger">${r}</span></li>`).join('')}</ul></div>
+    </div>
+    <div class="card full">
+      <h3>Approval Criteria</h3>
+      <div class="body"><p class="dim">This expert endorses when:</p><ul>${e.approves.map(a => `<li>${a}</li>`).join('')}</ul></div>
+    </div>
+  </div>`;
+}
+
+function renderSessionView(el) {
+  const focus = FOCUS_AREAS[state.focus];
+  const modeLabel = { discussion: 'Discussion — Collaborative Analysis', debate: 'Debate — Adversarial Stress Test', socratic: 'Socratic Inquiry — Strategic Questioning' };
+
+  el.innerHTML = `
+    <div class="card full" style="margin-bottom:20px;">
+      <h3>Business Under Analysis <span class="tag tag-mode">${EXAMPLE_BIZ.title}</span></h3>
+      <div class="body">
+        <p style="margin-bottom:10px;">${EXAMPLE_BIZ.summary}</p>
+        <pre>${EXAMPLE_BIZ.details.join('\n')}</pre>
+      </div>
+    </div>
+    <div style="font-size:13px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:12px;">${modeLabel[state.mode]}</div>
+    <div class="card full">
+      <h3>Panel Session <span class="tag tag-mode">${focus.name} Focus</span></h3>
+      <div class="body"><pre>${getSessionContent(state.focus, state.mode)}</pre></div>
+    </div>
+    <div class="card full" style="margin-top:20px;">
+      <h3>Key Takeaways</h3>
+      <div class="body"><pre>${getTakeaways(state.focus, state.mode)}</pre></div>
+    </div>
+  `;
+}
+
+function renderSynthesisView(el) {
+  const synth = getSynthesis(state.focus);
+  el.innerHTML = `<div class="content-grid">
+    <div class="card full">
+      <h3>Panel Synthesis <span class="tag tag-mode">${FOCUS_AREAS[state.focus].name} Focus</span></h3>
+      <div class="body"><pre>${synth.consensus}</pre></div>
+    </div>
+    <div class="card">
+      <h3>Agreements</h3>
+      <div class="body"><pre>${synth.agreements}</pre></div>
+    </div>
+    <div class="card">
+      <h3>Disagreements</h3>
+      <div class="body"><pre>${synth.disagreements}</pre></div>
+    </div>
+    <div class="card full">
+      <h3>Priority-Ranked Recommendations</h3>
+      <div class="body"><pre>${synth.recommendations}</pre></div>
+    </div>
+    <div class="card full">
+      <h3>Boundary — What Happens Next</h3>
+      <div class="body">
+        <p><span class="danger">This panel produces ANALYSIS ONLY — not implementation.</span></p>
+        <p style="margin-top:8px;">The business panel stops here. To act on recommendations:</p>
+        <ul style="margin-top:8px;">
+          <li><code>/sc:design</code> — for architectural changes suggested by the panel</li>
+          <li><code>/sc:implement</code> — for feature development from recommendations</li>
+          <li><code>/sc:workflow</code> — to convert recommendations into executable tasks</li>
+          <li><code>/sc:spec-panel</code> — to validate any spec changes with the engineering panel</li>
+        </ul>
+        <p class="dim" style="margin-top:12px;">The human decides which recommendations to pursue. The panel advises — it does not execute.</p>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─────────────────────────────────────────────
+// SESSION CONTENT DATA
+// ─────────────────────────────────────────────
+
+function getSessionContent(focus, mode) {
+  const sessions = {
+    competitive: {
+      discussion: `<span class="hl">MICHAEL PORTER:</span> "Let's map the Five Forces for the Etsy
+digital downloads market. First — competitive rivalry: there are
+thousands of sellers creating children's printables. But most are
+selling finished PDFs, not generation tools. SVG-PAINT isn't
+competing in the printable market — it's competing in the
+seller-tools market. That's a much smaller, less crowded space."
+
+<span class="hl">CLAYTON CHRISTENSEN:</span> "Let me reframe this through Jobs-to-be-Done.
+The Etsy seller isn't hiring SVG-PAINT to 'generate SVGs.' They're
+hiring it to 'create a professional product line without being a
+designer.' The job is professionalizing their shop — going from
+5 hand-made products to 500 programmatically generated ones.
+
+That's a completely different competitive frame. The alternative
+isn't another SVG tool — it's hiring a freelance designer on
+Fiverr, or spending 40 hours in Canva manually."
+
+<span class="hl">KIM & MAUBORGNE:</span> "Let's draw the strategy canvas. The existing
+alternatives compete on:
+  • Design quality (high for Canva/designers, low for DIY)
+  • Speed (low for manual, medium for Canva, high for SVG-PAINT)
+  • Accessibility compliance (zero for all competitors)
+  • Batch volume (impossible manually, limited in Canva)
+
+SVG-PAINT's value curve is completely different. You've eliminated
+design complexity (programmatic generation), raised speed and
+volume massively, and created accessibility compliance where
+none existed. This IS a blue ocean."
+
+<span class="hl">MICHAEL PORTER:</span> "The accessibility angle is the defensible
+moat. Anyone can build an SVG generator. But the contrast
+checking by age range — that's domain-specific knowledge
+embedded in software. It creates switching costs: once a seller
+validates their product line against your contrast tiers,
+moving to a competitor means re-validating everything."`,
+
+      debate: `<span class="hl">MICHAEL PORTER:</span> "I'll push back on the optimism. Your Five
+Forces analysis has a gap: threat of new entrants. Building an
+SVG generator is not hard. A competent developer could clone
+your core feature in a weekend. Where's the barrier to entry?"
+
+<span class="hl">CLAYTON CHRISTENSEN:</span> "Porter is right to worry, but for the
+wrong reason. The barrier isn't technical — it's the accumulated
+domain knowledge. 100,000 glyphs, age-range contrast tiers,
+font license verification, 9 print sizes — this is a year of
+embedded expertise. A clone gets the code but not the knowledge.
+
+But here's MY concern: you're building a sustaining innovation
+for an existing market (Etsy sellers). If someone builds a
+simpler, worse tool that targets a NEW segment — say, teachers
+making classroom materials — they could disrupt you from below."
+
+<span class="hl">KIM & MAUBORGNE:</span> "Both of you are thinking red ocean. The
+question isn't 'who can copy us' or 'who can disrupt us' — it's
+'are we creating new demand?' If SVG-PAINT enables sellers who
+COULDN'T create professional products before, you're expanding
+the market, not just competing for existing customers."
+
+<span class="hl">MICHAEL PORTER:</span> "Market creation is nice in theory, but
+you still need to capture value. What's stopping Etsy from
+building this directly into their platform? Buyer power is
+your biggest risk — you have one distribution channel."`,
+
+      socratic: `<span class="hl">MICHAEL PORTER:</span> "If Etsy shut down tomorrow, would your
+business survive? If not, you have a platform dependency
+problem, not a product problem."
+
+<span class="hl">CLAYTON CHRISTENSEN:</span> "When a seller opens SVG-PAINT at
+8 PM after putting their kids to bed, what progress are they
+trying to make in their life? Is it 'generate SVGs' or is it
+'build financial independence through a side business'? The
+answer changes everything about your product roadmap."
+
+<span class="hl">KIM & MAUBORGNE:</span> "What does your industry take for granted?
+Every digital download tool assumes the seller is a designer.
+What if you eliminated that assumption entirely? What would a
+tool for NON-designers look like?"
+
+<span class="hl">MICHAEL PORTER:</span> "Your competitors offer 10,000 features.
+You offer 3. But your 3 features are 10x better at the specific
+job. Is that a weakness or a strategy? Porter says: that's
+focus strategy. Don't add features 4-10. Double down on 1-3."
+
+<span class="hl">CLAYTON CHRISTENSEN:</span> "Who is NOT using your product today
+that you wish was? What's stopping them? That barrier is either
+your next feature or your blind spot."`
+    },
+
+    growth: {
+      discussion: `<span class="hl">SETH GODIN:</span> "Who is your smallest viable audience? Not
+'Etsy sellers' — that's millions of people. I want specifics.
+'Etsy sellers who create children's educational printables and
+have more than 50 listings.' That's maybe 10,000 people.
+Can you make something so remarkable that those 10,000 would
+miss it if it were gone?"
+
+<span class="hl">JIM COLLINS:</span> "Let's find the Hedgehog Concept. Three circles:
+
+  1. What are you deeply passionate about?
+     → Making print products accessible for all children
+  2. What can you be best in the world at?
+     → Age-range contrast validation for children's print products
+  3. What drives your economic engine?
+     → One-time license fee + template packs for Etsy sellers
+
+The intersection: 'The definitive tool for creating accessible
+children's printables.' That's your Hedgehog. Everything you
+build should serve it. Everything that doesn't — cut it."
+
+<span class="hl">PETER DRUCKER:</span> "You're measuring the wrong thing. You're
+tracking features built and glyphs supported. But your customer
+doesn't care about glyphs — they care about listings published
+and revenue earned. Measure: 'How many listings has SVG-PAINT
+helped create this month?' That's your effectiveness metric."
+
+<span class="hl">SETH GODIN:</span> "The Purple Cow here is the contrast checking.
+No other tool does it. That's your 'Would a seller tell another
+seller about this?' moment. When a seller realizes their yellow-
+on-cream baby cards would fail accessibility — and SVG-PAINT
+catches it before they ship — THAT'S the story they tell."
+
+<span class="hl">JIM COLLINS:</span> "Now the flywheel:
+  Sellers create accessible products → positive reviews mention
+  accessibility → more parents seek accessible products → more
+  sellers need SVG-PAINT → more data to improve contrast rules
+  → better products → more positive reviews...
+
+  Each turn accelerates the next. That's compounding."`,
+
+      debate: `<span class="hl">PETER DRUCKER:</span> "You're building a tool. But are you
+building a business? A tool has a one-time sale. A business
+has recurring value. If you sell SVG-PAINT for $49 once, what's
+your customer lifetime value? Can you afford to acquire customers?"
+
+<span class="hl">SETH GODIN:</span> "Drucker is measuring the old way. This isn't
+about LTV-to-CAC ratios. This is about tribe building. If your
+10,000 smallest viable audience members each tell 2 friends,
+your growth is organic. You don't need a marketing budget —
+you need a remarkable product and a way for people to share it."
+
+<span class="hl">JIM COLLINS:</span> "I disagree with both of you. The question
+isn't pricing or marketing — it's discipline. Are you building
+one great thing or five mediocre things? I see a project with
+Epics 1-16, a roadmap stretching to the horizon, and branching
+into AI and procedural generation. That's fox behavior. Pick
+the Hedgehog and go deep."
+
+<span class="hl">PETER DRUCKER:</span> "Collins is right. If you weren't already
+building the AI analysis feature, would you start it today?
+Apply my 'systematic abandonment' test: if this feature didn't
+exist and you were starting fresh, would you invest in it?"
+
+<span class="hl">SETH GODIN:</span> "The risk of discipline is stagnation. The risk
+of expansion is dilution. Find the middle: expand WITHIN your
+Hedgehog. More print sizes? That serves the Hedgehog. AI-powered
+tag generation? Only if it makes the seller's job faster — not
+because AI is trendy."`,
+
+      socratic: `<span class="hl">SETH GODIN:</span> "If you had to describe SVG-PAINT in six
+words to a seller at an Etsy conference, what would you say?
+If you can't do it in six, your positioning isn't clear enough."
+
+<span class="hl">JIM COLLINS:</span> "What could SVG-PAINT be the best in the world
+at? Not 'good' — the actual best. If the answer is 'accessible
+children's printables,' then every feature that doesn't serve
+that should be questioned."
+
+<span class="hl">PETER DRUCKER:</span> "Who is your customer? Not your user — your
+CUSTOMER. The person who pays. Is it the Etsy seller? Or is
+it the parent who buys the printable? Who you optimize for
+determines everything."
+
+<span class="hl">JIM COLLINS:</span> "What would happen if SVG-PAINT disappeared
+tomorrow? Would anyone notice? Who would be most affected?
+Those people are your core. Build for them first, exclusively,
+obsessively."
+
+<span class="hl">SETH GODIN:</span> "What permission do you have from your users?
+Can you email them about a new feature and they'll be excited?
+Or will they unsubscribe? Permission is the most valuable
+asset a small business can have."`
+    },
+
+    risk: {
+      discussion: `<span class="hl">NASSIM TALEB:</span> "Let me assess the fragility profile.
+SVG-PAINT has several fragilities I want to examine:
+
+  1. <span class="danger">Platform dependency</span> — 100% of revenue flows through
+     Etsy. If Etsy changes their digital download policy,
+     adds fees, or launches a competing tool, you're exposed.
+     This is a single point of failure with unlimited downside.
+
+  2. <span class="warn">Local-first as antifragile</span> — actually good. No server
+     costs, no cloud dependency, no monthly burn. If revenue
+     drops to zero, costs drop to zero. That's convex.
+
+  3. <span class="ok">Open format (SVG)</span> — no vendor lock-in on the output
+     format. If SVG-PAINT dies, sellers keep their files.
+     This builds trust and is antifragile.
+
+The barbell strategy here: keep costs near zero (local-first)
+while having unlimited upside potential (template marketplace).
+The fragile part is the Etsy dependency."
+
+<span class="hl">DONELLA MEADOWS:</span> "Let me map the system dynamics.
+
+The reinforcing loop (R1):
+  More sellers → more reviews → more visibility → more sellers
+  This is a classic growth engine.
+
+The balancing loop (B1):
+  More sellers → more competition → lower prices → fewer sellers
+  This caps growth.
+
+The leverage point: accessibility compliance. It shifts the
+competition from 'who has prettier designs' (race to the
+bottom) to 'who has verified accessible designs' (defensible
+niche). That's a leverage point at the system RULES level —
+Meadows' Leverage Point #5. Very powerful."
+
+<span class="hl">NASSIM TALEB:</span> "Meadows is right about the leverage point.
+But I want to add: the contrast validation rules themselves
+are antifragile. Every time a parent complains about a
+non-accessible product, demand for verified products increases.
+SVG-PAINT BENEFITS from the problem it solves getting worse.
+That's textbook antifragility."`,
+
+      debate: `<span class="hl">NASSIM TALEB:</span> "Your entire business is built on a
+platform you don't control. That's not a risk — it's a
+guarantee of eventual harm. Etsy has already changed their
+fee structure three times. What happens when they take a 25%
+cut instead of 15%? Or when they build contrast-checking
+into their upload flow? You're a feature, not a product."
+
+<span class="hl">DONELLA MEADOWS:</span> "Taleb is being too binary. The Etsy
+dependency isn't a cliff — it's a stock that can be drawn down
+gradually. The system response is: diversify the outflow.
+Teachers Pay Teachers, Amazon KDP, Shopify digital downloads.
+Each channel reduces the stock's sensitivity to Etsy policy."
+
+<span class="hl">NASSIM TALEB:</span> "Diversification of channels is necessary
+but insufficient. The question is: do you have skin in the
+game? If Etsy sellers lose money on your advice, do YOU lose
+money? If not, there's an agency problem. You benefit from
+their effort without sharing their downside."
+
+<span class="hl">DONELLA MEADOWS:</span> "That's a valid point. But consider the
+delay dynamics. Taleb wants immediate action on platform risk.
+The system says: delays between action and effect mean you
+should start diversifying NOW, because it takes 6-12 months
+to build a presence on a new platform."`,
+
+      socratic: `<span class="hl">NASSIM TALEB:</span> "What's the worst case? Not the likely
+worst — the actual worst. Etsy bans AI-generated content
+tomorrow. Your entire user base can't sell. What happens?"
+
+<span class="hl">DONELLA MEADOWS:</span> "What happens three steps downstream from
+adding AI-powered features? Does it make you more dependent
+on external APIs? Does it add fragility or reduce it?"
+
+<span class="hl">NASSIM TALEB:</span> "If your revenue dropped 90% overnight,
+would SVG-PAINT survive? If yes — you're antifragile. If no
+— you're fragile. What would need to change to survive that?"
+
+<span class="hl">DONELLA MEADOWS:</span> "What feedback loop is missing? You have
+seller input driving product development. But where is the
+end-user (parent/child) feedback loop? The person using the
+printed product has zero input into the system. That's a
+blind spot."
+
+<span class="hl">NASSIM TALEB:</span> "Are you confusing 'no downside risk today'
+with 'no downside risk ever'? Local-first means low costs.
+But it also means no recurring revenue. When do you need to
+generate revenue again — and what's your optionality then?"`
+    },
+
+    communication: {
+      discussion: `<span class="hl">JEAN-LUC DOUMONT:</span> "What is the one message SVG-PAINT
+needs to communicate to a potential user? I see the landing
+page talking about 'SVG generation,' 'batch processing,'
+'contrast validation,' 'print sizes,' 'age ranges' — that's
+five messages. The reader's brain can hold one.
+
+My recommendation: 'Create accessible children's printables —
+hundreds at a time, all contrast-verified.'
+
+Everything else supports this message or gets cut."
+
+<span class="hl">SETH GODIN:</span> "Doumont is right about clarity, but I want
+to push on the emotional layer. Sellers don't buy 'contrast
+validation.' They buy 'confidence that their products won't
+hurt a child's developing vision.' Lead with the emotion:
+
+  'Every card you sell is safe for tiny eyes.'
+
+That's the story they tell other sellers. That's the Purple
+Cow moment."
+
+<span class="hl">JEAN-LUC DOUMONT:</span> "Godin's framing is good but needs
+structure. I'd organize the communication hierarchy as:
+
+  Level 1 (headline): Safe printables for tiny eyes
+  Level 2 (subhead): Batch-generate contrast-verified cards
+  Level 3 (details): Age-range tiers, 9 print sizes, 100K+
+
+Each level serves the one above it. The reader can stop at
+any level and have a complete, usable understanding."
+
+<span class="hl">SETH GODIN:</span> "And the call to action isn't 'Download' or
+'Buy' — it's 'See it in action.' Let the product sell itself.
+Permission marketing: give them a free contrast check on their
+existing designs. They see the value. Then they buy."`,
+
+      debate: `<span class="hl">JEAN-LUC DOUMONT:</span> "The current documentation is written
+for the developer, not the user. CLAUDE.md has 200+ lines of
+constraints. Where is the user-facing equivalent? A seller
+shouldn't need to understand 'viewBox 0 0 100 100' to make
+a product."
+
+<span class="hl">SETH GODIN:</span> "I'll go further — the documentation shouldn't
+exist at all in its current form. If your product needs 200
+lines of documentation for the USER, your product is too
+complicated. The product should teach itself through use."
+
+<span class="hl">JEAN-LUC DOUMONT:</span> "I disagree with Godin. Documentation
+is necessary — but it must serve the audience. Technical docs
+for developers, workflow guides for sellers, one-page quick
+starts for beginners. Three audiences, three documents, one
+message each."
+
+<span class="hl">SETH GODIN:</span> "Fair — but each document should be so clear
+that no one needs to read it twice. If someone reads your
+tutorial and still has questions, the tutorial failed."`,
+
+      socratic: `<span class="hl">JEAN-LUC DOUMONT:</span> "If your best customer had 30 seconds
+to explain SVG-PAINT to a friend, what would they say?
+Whatever that sentence is — that's your positioning. Not
+what you think they should say. What they actually say."
+
+<span class="hl">SETH GODIN:</span> "Is your product worth talking about? Not
+'is it good' — is it remarkable? If a seller told another
+seller about SVG-PAINT at a meetup, would the listener
+lean in or tune out? What makes them lean in?"
+
+<span class="hl">JEAN-LUC DOUMONT:</span> "Look at your README right now.
+What's the first sentence? If it starts with 'SVG-PAINT
+is a...' you've already lost. Start with the problem:
+'Your children's printables might be hurting tiny eyes.'
+Then offer the solution."
+
+<span class="hl">SETH GODIN:</span> "Who will never use your product, no matter
+how good it is? Knowing who ISN'T your audience is as
+important as knowing who is. Stop trying to reach them."`
+    }
+  };
+  return sessions[focus]?.[mode] || '<span class="dim">No session content for this combination.</span>';
+}
+
+function getTakeaways(focus, mode) {
+  const data = {
+    competitive: {
+      discussion: `<span class="ok">1.</span> SVG-PAINT competes in seller-tools, not printables — different market
+<span class="ok">2.</span> Contrast checking is the defensible moat (domain knowledge barrier)
+<span class="ok">3.</span> Blue ocean confirmed — value curve distinct from all alternatives
+<span class="ok">4.</span> Job-to-be-Done: "professionalize my Etsy shop without being a designer"`,
+      debate: `<span class="warn">1.</span> Technical moat is weak — domain knowledge moat is strong
+<span class="warn">2.</span> Platform dependency (Etsy) is the biggest strategic risk
+<span class="warn">3.</span> Sustaining vs. disruptive position needs clarification
+<span class="ok">4.</span> Focus strategy (few features, 10x better) is defensible`,
+      socratic: `<span class="purple">1.</span> Platform dependency test: would the business survive without Etsy?
+<span class="purple">2.</span> Customer progress: financial independence, not SVG generation
+<span class="purple">3.</span> Non-designer assumption is the industry orthodoxy to challenge
+<span class="purple">4.</span> Focus strategy: don't add features 4-10, double down on 1-3`
+    },
+    growth: {
+      discussion: `<span class="ok">1.</span> Smallest viable audience: Etsy sellers with 50+ children's listings
+<span class="ok">2.</span> Hedgehog: "the definitive tool for accessible children's printables"
+<span class="ok">3.</span> Flywheel: accessible products → positive reviews → more demand → more sellers
+<span class="ok">4.</span> Metric: listings created, not features built`,
+      debate: `<span class="warn">1.</span> Tool vs. business tension: one-time sale limits growth
+<span class="warn">2.</span> Expansion should stay within the Hedgehog, not chase trends
+<span class="warn">3.</span> AI features pass the "would you start today?" test only if they serve the Hedgehog
+<span class="ok">4.</span> Tribe building > marketing budget for this audience`,
+      socratic: `<span class="purple">1.</span> Six-word positioning test: can you say it in six words?
+<span class="purple">2.</span> Customer vs. user: optimize for the person who pays
+<span class="purple">3.</span> Permission level: can you email users and they'll be excited?
+<span class="purple">4.</span> Disappearance test: who would notice if SVG-PAINT were gone?`
+    },
+    risk: {
+      discussion: `<span class="ok">1.</span> Local-first architecture IS antifragile (costs ↔ revenue)
+<span class="danger">2.</span> Etsy dependency is the critical fragility — single point of failure
+<span class="ok">3.</span> Contrast validation is antifragile — benefits from the problem worsening
+<span class="ok">4.</span> Accessibility compliance is a Leverage Point #5 (system rules level)`,
+      debate: `<span class="danger">1.</span> Platform risk is a guarantee of eventual harm, not just a possibility
+<span class="warn">2.</span> Channel diversification needed NOW — 6-12 month lead time
+<span class="warn">3.</span> Skin in the game gap: tool maker doesn't share seller's downside
+<span class="ok">4.</span> Open format (SVG) prevents vendor lock-in — builds trust`,
+      socratic: `<span class="purple">1.</span> Worst case: Etsy bans AI content — entire user base affected
+<span class="purple">2.</span> 90% revenue drop test: would SVG-PAINT survive?
+<span class="purple">3.</span> Missing feedback loop: end-user (parent/child) has zero input
+<span class="purple">4.</span> AI features may add API dependency (new fragility)`
+    },
+    communication: {
+      discussion: `<span class="ok">1.</span> One message: "Create accessible children's printables — hundreds at a time"
+<span class="ok">2.</span> Emotional hook: "Every card you sell is safe for tiny eyes"
+<span class="ok">3.</span> Communication hierarchy: headline → subhead → details (each level standalone)
+<span class="ok">4.</span> CTA: "See it in action" not "Buy now" — let the product sell itself`,
+      debate: `<span class="warn">1.</span> Current docs serve developers, not sellers — audience mismatch
+<span class="warn">2.</span> If the product needs 200 lines of docs for users, it's too complex
+<span class="ok">3.</span> Three audiences need three documents: developers, sellers, beginners
+<span class="ok">4.</span> Each document: one message, clear enough to never re-read`,
+      socratic: `<span class="purple">1.</span> 30-second test: what would your best customer actually say?
+<span class="purple">2.</span> Remarkability test: would a listener lean in or tune out?
+<span class="purple">3.</span> README first sentence: lead with the problem, not the product name
+<span class="purple">4.</span> Anti-audience: knowing who ISN'T your audience is equally important`
+    }
+  };
+  return data[focus]?.[mode] || '';
+}
+
+function getSynthesis(focus) {
+  const data = {
+    competitive: {
+      consensus: `<span class="orange">═══ BUSINESS PANEL SYNTHESIS: COMPETITIVE ═══</span>
+
+<span class="hl">Core Finding:</span> SVG-PAINT operates in a blue ocean — the
+seller-tools-for-accessible-printables market has zero direct
+competitors. The contrast checking feature is both the Purple Cow
+and the competitive moat.
+
+<span class="hl">Strategic Position:</span> Focus strategy (Porter) targeting an
+overlooked segment (Christensen) with a distinct value curve
+(Kim & Mauborgne). All three frameworks align — rare.
+
+<span class="dim">No pass/fail scoring — advisory panel only.</span>`,
+      agreements: `<span class="ok">UNANIMOUS:</span>
+  • Contrast validation is the core differentiator
+  • SVG-PAINT competes in seller-tools, not printables
+  • Domain knowledge is the real barrier to entry
+  • Focus strategy is correct — don't expand features
+
+<span class="ok">MAJORITY (2/3):</span>
+  • Blue ocean positioning is genuine, not aspirational
+  • Job-to-be-Done framing should guide product decisions`,
+      disagreements: `<span class="warn">PORTER vs CHRISTENSEN:</span>
+  Porter says the moat is industry structure (switching costs).
+  Christensen says the moat is the accumulated job insight.
+  <span class="dim">Resolution: both are right — structural and knowledge moats
+  are complementary, not competing.</span>
+
+<span class="warn">KIM & MAUBORGNE vs PORTER:</span>
+  K&M say "stop analyzing competition, create new demand."
+  Porter says "always know your Five Forces — ignorance is risk."
+  <span class="dim">Resolution: create new demand while monitoring forces.</span>`,
+      recommendations: `<span class="danger">[HIGH] Platform risk mitigation</span>
+  Etsy dependency is unanimous concern. Explore Teachers Pay
+  Teachers, Amazon KDP as secondary channels. Timeline: 6 months.
+
+<span class="warn">[MED] Sharpen JTBD positioning</span>
+  Reframe from "SVG generation tool" to "professional shop builder
+  for accessible children's products." Affects marketing, docs, UI.
+
+<span class="warn">[MED] Deepen the moat</span>
+  Add more age-range tiers, more accessibility checks, more print
+  standards. Each addition increases switching cost.
+
+<span class="dim">[LOW] Monitor for disruption from below</span>
+  Watch for simpler tools targeting teachers/homeschoolers that
+  could expand into the Etsy seller segment.`
+    },
+    growth: {
+      consensus: `<span class="orange">═══ BUSINESS PANEL SYNTHESIS: GROWTH ═══</span>
+
+<span class="hl">Core Finding:</span> The Hedgehog Concept is clear — "the definitive
+tool for accessible children's printables." The flywheel exists
+but isn't being consciously managed. Metric alignment is off:
+measuring features built instead of seller outcomes.
+
+<span class="hl">Growth Strategy:</span> Tribe-based, permission-driven, organic.
+Not paid acquisition. The Purple Cow (contrast checking) drives
+word-of-mouth if properly positioned.`,
+      agreements: `<span class="ok">UNANIMOUS:</span>
+  • Hedgehog = accessible children's printables
+  • Metric should be "listings created" not "features built"
+  • Tribe-based growth fits this audience perfectly
+  • AI features must serve the Hedgehog or be cut
+
+<span class="ok">MAJORITY (2/3):</span>
+  • Flywheel mechanics are present but underutilized
+  • One-time pricing is a constraint but not fatal`,
+      disagreements: `<span class="warn">GODIN vs COLLINS:</span>
+  Godin: "Expand into adjacent audiences (teachers, homeschoolers)"
+  Collins: "That's fox behavior — stay with the Hedgehog"
+  <span class="dim">Resolution: expand only if new audience has the SAME job-to-be-done.</span>
+
+<span class="warn">DRUCKER vs GODIN:</span>
+  Drucker: "Measure customer value with hard numbers (LTV, listings)"
+  Godin: "Trust isn't measured — it's earned through generosity"
+  <span class="dim">Resolution: measure outcomes, earn trust through the product itself.</span>`,
+      recommendations: `<span class="danger">[HIGH] Align metrics to customer outcomes</span>
+  Track: listings created, contrast checks passed, revenue enabled.
+  Stop tracking: features built, code coverage, sprint velocity.
+
+<span class="warn">[MED] Activate the flywheel consciously</span>
+  Make it easy for sellers to share their accessibility-verified
+  products. Badge system? "Contrast Verified" stamp?
+
+<span class="warn">[MED] Apply systematic abandonment</span>
+  For every feature on the roadmap, ask: "Would we start this
+  today?" If no — cut it. Focus resources on the Hedgehog.
+
+<span class="dim">[LOW] Free contrast check as lead magnet</span>
+  Let sellers upload existing designs for a free check. Experience
+  the value before buying. Permission marketing in action.`
+    },
+    risk: {
+      consensus: `<span class="orange">═══ BUSINESS PANEL SYNTHESIS: RISK ═══</span>
+
+<span class="hl">Core Finding:</span> SVG-PAINT has a mixed fragility profile. The
+architecture is antifragile (local-first, zero server costs).
+The business model is fragile (single platform dependency).
+The product feature (contrast checking) is antifragile (benefits
+from the problem getting worse).
+
+<span class="hl">System Dynamics:</span> Two feedback loops identified. Reinforcing
+loop (R1) drives growth. Balancing loop (B1) caps it. The
+leverage point is at the system rules level — accessibility
+compliance changes the competitive game entirely.`,
+      agreements: `<span class="ok">UNANIMOUS:</span>
+  • Etsy dependency is the critical fragility
+  • Local-first architecture is genuinely antifragile
+  • Contrast validation benefits from the problem worsening
+  • Open format (SVG) prevents vendor lock-in
+
+<span class="ok">BOTH EXPERTS:</span>
+  • Missing end-user feedback loop is a system blind spot
+  • Channel diversification has 6-12 month lead time — start now`,
+      disagreements: `<span class="warn">TALEB vs MEADOWS:</span>
+  Taleb: "Act immediately on platform risk — it's existential"
+  Meadows: "Diversification is a gradual process — rushing creates
+  new fragilities. Start now but don't panic."
+  <span class="dim">Resolution: begin diversification this quarter but invest
+  proportionally — 80% effort on Etsy, 20% on next channel.</span>`,
+      recommendations: `<span class="danger">[HIGH] Platform diversification — begin immediately</span>
+  Research Teachers Pay Teachers + Amazon KDP compatibility.
+  Goal: second channel operational within 6 months. But invest
+  proportionally (80/20 split with Etsy).
+
+<span class="danger">[HIGH] Preserve optionality</span>
+  Keep the architecture local-first. Do not add cloud dependencies
+  for AI features — use local LLMs or make cloud AI optional.
+  Every cloud dependency adds fragility.
+
+<span class="warn">[MED] Add end-user feedback loop</span>
+  Currently: seller → SVG-PAINT → product. Missing: parent/child
+  → feedback → product improvement. Consider a "parent feedback
+  card" template that sellers include with products.
+
+<span class="dim">[LOW] Stress-test the business model</span>
+  Simulate: what if Etsy takes 25%? What if revenue drops 50%?
+  What if a competitor clones the contrast feature? Build
+  scenarios and identify trigger points for each.`
+    },
+    communication: {
+      consensus: `<span class="orange">═══ BUSINESS PANEL SYNTHESIS: COMMUNICATION ═══</span>
+
+<span class="hl">Core Finding:</span> SVG-PAINT has a clear value proposition buried
+under technical language. The product sells itself — but the
+communication doesn't. Restructuring around one message would
+dramatically improve adoption.
+
+<span class="hl">Message Hierarchy:</span>
+  L1: "Safe printables for tiny eyes"
+  L2: "Batch-generate contrast-verified children's cards"
+  L3: "100K+ glyphs, 9 print sizes, age-range accessibility"`,
+      agreements: `<span class="ok">UNANIMOUS:</span>
+  • Current messaging leads with features, should lead with benefit
+  • One message per communication unit — cut everything else
+  • Three audiences need three different documents
+  • Call-to-action should be experiential ("See it in action")
+
+<span class="ok">BOTH EXPERTS:</span>
+  • Emotional hook ("safe for tiny eyes") > technical description
+  • README should start with the problem, not the product name`,
+      disagreements: `<span class="warn">DOUMONT vs GODIN:</span>
+  Doumont: "Documentation is necessary — just restructure it"
+  Godin: "If it needs documentation, the product is too complex"
+  <span class="dim">Resolution: simplify the product AND improve the docs. Both.</span>`,
+      recommendations: `<span class="danger">[HIGH] Rewrite all user-facing messaging</span>
+  Lead with benefit, not feature. "Safe for tiny eyes" not
+  "SVG generation platform." Apply to README, landing page,
+  Etsy listing description, social media.
+
+<span class="warn">[MED] Create audience-specific documentation</span>
+  1. Quick Start (seller, 1 page): first product in 5 minutes
+  2. Workflow Guide (seller, 5 pages): full product line creation
+  3. Technical Docs (developer): architecture and contribution
+
+<span class="warn">[MED] Build a free contrast checker</span>
+  Upload any image → get accessibility report. Zero friction.
+  This IS the marketing. Let the product demonstrate its own
+  value. Permission earned through generosity.
+
+<span class="dim">[LOW] Add "Contrast Verified" badge for listings</span>
+  Visual trust signal that sellers can add to Etsy listings.
+  Creates social proof and spreads awareness organically.`
+    }
+  };
+  return data[focus];
+}
+
+function setMode(m) { state.mode = m; render(); }
+function setFocus(f) {
+  state.focus = f;
+  const focusExperts = FOCUS_AREAS[f].experts;
+  if (!focusExperts.includes(state.selectedExpert)) state.selectedExpert = focusExperts[0];
+  render();
+}
+function setView(v) { state.view = v; render(); }
+function selectExpert(key) { state.selectedExpert = key; state.view = 'experts'; render(); }
+
+render();
+</script>
+</body>
+</html>

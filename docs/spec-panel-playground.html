@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spec Panel — Expert Specification Review</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2333;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --text-bright: #f0f6fc;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --green-dim: #238636;
+    --yellow: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --orange: #f0883e;
+    --cyan: #39d2c0;
+    --pink: #f778ba;
+    --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── Layout ── */
+  .header { padding: 20px 32px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; }
+  .header h1 { font-size: 20px; color: var(--text-bright); font-weight: 600; }
+  .header .subtitle { font-size: 13px; color: var(--text-dim); }
+  .header .back { font-size: 13px; color: var(--accent); text-decoration: none; margin-left: auto; font-family: var(--mono); }
+  .header .back:hover { text-decoration: underline; }
+
+  .controls { padding: 12px 32px; border-bottom: 1px solid var(--border); background: var(--surface); display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+  .control-group { display: flex; align-items: center; gap: 8px; }
+  .control-group label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .ctrl-btn { padding: 5px 12px; border-radius: 5px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 12px; cursor: pointer; font-family: var(--sans); transition: all 0.15s; }
+  .ctrl-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .ctrl-btn.active { border-color: var(--accent); background: rgba(88,166,255,0.1); color: var(--accent); }
+
+  .main { display: grid; grid-template-columns: 260px 1fr; height: calc(100vh - 100px); }
+
+  /* ── Expert sidebar ── */
+  .sidebar { border-right: 1px solid var(--border); overflow-y: auto; background: var(--surface); padding: 0; }
+  .sidebar-title { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; padding: 16px 16px 8px; font-weight: 600; }
+
+  .expert-card {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .expert-card:hover { background: var(--surface2); }
+  .expert-card.active { background: var(--surface2); border-left: 3px solid var(--accent); }
+  .expert-card.active .expert-name { color: var(--accent); }
+  .expert-card.dimmed { opacity: 0.35; }
+
+  .expert-name { font-size: 14px; font-weight: 600; color: var(--text-bright); margin-bottom: 2px; }
+  .expert-domain { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+  .expert-badge { position: absolute; top: 12px; right: 12px; font-size: 9px; padding: 2px 6px; border-radius: 3px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+  .badge-lead { background: rgba(210,153,34,0.2); color: var(--yellow); }
+  .badge-default { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge-auto { background: rgba(188,140,255,0.15); color: var(--purple); }
+  .token-cost { font-size: 10px; color: var(--text-dim); font-family: var(--mono); margin-top: 3px; }
+
+  /* ── Content area ── */
+  .content { overflow-y: auto; padding: 24px 32px; }
+  .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+  .card.full { grid-column: 1 / -1; }
+  .card h3 { font-size: 13px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card h3 .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .tag-req { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .tag-arch { background: rgba(188,140,255,0.15); color: var(--purple); }
+  .tag-test { background: rgba(63,185,80,0.15); color: var(--green); }
+  .tag-comp { background: rgba(240,136,62,0.15); color: var(--orange); }
+  .tag-mode { background: rgba(210,153,34,0.15); color: var(--yellow); }
+
+  .body { font-size: 14px; line-height: 1.7; color: var(--text); }
+  .body code { font-family: var(--mono); font-size: 12px; background: var(--bg); padding: 2px 6px; border-radius: 4px; color: var(--cyan); }
+  .body pre { font-family: var(--mono); font-size: 12px; background: var(--bg); padding: 14px; border-radius: 6px; overflow-x: auto; margin: 10px 0; line-height: 1.6; border: 1px solid var(--border); white-space: pre-wrap; }
+  .body ul { padding-left: 18px; }
+  .body li { margin-bottom: 4px; }
+  .body li::marker { color: var(--text-dim); }
+  .hl { color: var(--accent); font-weight: 500; }
+  .warn { color: var(--yellow); }
+  .ok { color: var(--green); }
+  .danger { color: var(--red); }
+  .dim { color: var(--text-dim); }
+  .purple { color: var(--purple); }
+
+  /* ── Quote block ── */
+  .quote { border-left: 3px solid var(--accent); padding: 12px 16px; background: rgba(88,166,255,0.05); border-radius: 0 6px 6px 0; margin: 10px 0; font-style: italic; color: var(--text-bright); font-size: 14px; line-height: 1.6; }
+  .quote .attribution { font-style: normal; font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+
+  /* ── Score gauge ── */
+  .score-row { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+  .score-label { font-size: 12px; color: var(--text-dim); width: 100px; flex-shrink: 0; }
+  .score-bar { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+  .score-val { font-size: 12px; font-family: var(--mono); width: 40px; text-align: right; flex-shrink: 0; }
+
+  /* ── Nav ── */
+  .nav-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+  .nav-tab { padding: 10px 18px; font-size: 13px; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; font-weight: 500; }
+  .nav-tab:hover { color: var(--text); }
+  .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; }
+    .sidebar { max-height: 200px; }
+    .content-grid { grid-template-columns: 1fr; }
+    .card.full { grid-column: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div><span style="font-size:24px;">👥</span></div>
+  <div>
+    <h1>/sc:spec-panel — Expert Specification Review</h1>
+    <div class="subtitle">Multi-expert quality gate for Refining → Ready — 10 renowned experts, 4 focus areas, 3 analysis modes</div>
+  </div>
+  <div style="margin-left:auto;display:flex;gap:8px;">
+    <a class="back" href="pipeline-playground.html">&larr; Pipeline</a>
+    <a class="back" href="business-panel-playground.html" style="color:var(--orange);">📊 Business Panel</a>
+  </div>
+</div>
+
+<div class="controls" id="controls"></div>
+
+<div class="main">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="content" id="content"></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// EXPERT DATA
+// ─────────────────────────────────────────────
+
+const EXPERTS = {
+  'karl-wiegers': {
+    name: 'Karl Wiegers',
+    domain: 'Requirements Engineering',
+    methodology: 'SMART criteria, testability analysis, stakeholder validation',
+    panels: ['spec'], packs: ['core-requirements'],
+    tokens: 350,
+    voice: "This requirement lacks measurable acceptance criteria. How would you validate compliance in production?",
+    perspective: `Wiegers treats every requirement as a contract between stakeholders and builders. A requirement that cannot be tested is not a requirement — it's a wish. He scans for ambiguous language ("appropriate," "user-friendly," "fast"), missing boundary conditions, and acceptance criteria that lack specific thresholds.`,
+    looksFor: ['Measurable acceptance criteria with concrete values', 'Unambiguous language — no weasel words', 'Traceability from business goal to testable requirement'],
+    redFlags: ['"The system shall handle errors gracefully" (undefined)', 'Requirements without stakeholder attribution', 'Missing non-functional requirements (performance, security, availability)'],
+    approves: ['Every requirement has at least one testable acceptance criterion', 'Stakeholder roles and priorities are explicit', 'Requirements are traceable to business objectives'],
+    modes: {
+      discussion: 'Builds from specific examples, asks "how would you test this?"',
+      critique: 'Defends requirement precision against "we\'ll figure it out later" shortcuts',
+      socratic: '"Who is the primary stakeholder? What happens if this requirement is removed?"'
+    },
+    focusAreas: ['requirements', 'compliance'],
+    isDefault: true
+  },
+  'gojko-adzic': {
+    name: 'Gojko Adzic',
+    domain: 'Specification by Example',
+    methodology: 'Given/When/Then scenarios, example-driven requirements, collaborative specification',
+    panels: ['spec'], packs: ['core-requirements', 'core-testing'],
+    tokens: 300,
+    voice: "Can you provide concrete examples demonstrating this requirement in real-world scenarios?",
+    perspective: `Adzic believes specifications only become real when illustrated with concrete examples. Abstract requirements breed misunderstanding. He pushes every requirement toward executable examples that serve as both documentation and test cases. If you can't write a Given/When/Then for it, you don't understand it yet.`,
+    looksFor: ['Concrete examples for every behavioral requirement', 'Given/When/Then scenarios that double as acceptance tests', 'Edge cases expressed as additional examples, not prose'],
+    redFlags: ['Requirements described only in abstract terms', 'No examples for complex business rules', '"Happy path only" specifications with no error scenarios'],
+    approves: ['Key behaviors have at least 2-3 concrete examples each', 'Examples cover happy path, edge cases, and error cases', 'Scenarios are specific enough to be automated as tests'],
+    modes: {
+      discussion: '"Let\'s make this concrete — give me an example of X"',
+      critique: 'Challenges abstract specs with "show me an example where this breaks"',
+      socratic: '"What would happen if the input were empty? What about a thousand items?"'
+    },
+    focusAreas: ['requirements', 'testing'],
+    isDefault: true
+  },
+  'alistair-cockburn': {
+    name: 'Alistair Cockburn',
+    domain: 'Use Case Methodology',
+    methodology: 'Goal-oriented analysis, primary actor identification, scenario modeling',
+    panels: ['spec'], packs: ['core-requirements'],
+    tokens: 280,
+    voice: "Who is the primary stakeholder here, and what business goal are they trying to achieve?",
+    perspective: `Cockburn starts from goals, not features. Every requirement must trace back to an actor with a purpose. He maps requirements to goal levels (summary, user-goal, subfunction) and exposes specs that confuse implementation details with user intent.`,
+    looksFor: ['Clear actor identification with named goals', 'Goal-level hierarchy (why before what)', 'Main success scenario + extension scenarios'],
+    redFlags: ['Features described without actor or goal context', 'Implementation details masquerading as requirements', 'Missing "what could go wrong" extensions'],
+    approves: ['Every feature traces to a named actor and goal', 'Success and failure paths are both specified', 'Goal levels are appropriate (not too abstract, not too detailed)'],
+    modes: {
+      discussion: 'Reframes features as goals — "what is the user trying to accomplish?"',
+      critique: 'Challenges feature-first thinking — "that\'s a solution, not a requirement"',
+      socratic: '"What goal does this serve? What happens if the user abandons halfway?"'
+    },
+    focusAreas: ['requirements']
+  },
+  'martin-fowler': {
+    name: 'Martin Fowler',
+    domain: 'Software Architecture & Design',
+    methodology: 'Interface segregation, bounded contexts, refactoring patterns, evolutionary design',
+    panels: ['spec'], packs: ['core-engineering'],
+    tokens: 320,
+    voice: "This interface violates the single responsibility principle. Consider separating concerns.",
+    perspective: `Fowler evaluates specifications through the lens of evolutionary design. Good architecture emerges from clear boundaries, small interfaces, and the discipline to refactor when abstractions no longer fit. He looks for coupling between components, bloated interfaces, and specifications that lock in decisions too early.`,
+    looksFor: ['Clean interface boundaries between components', 'Single responsibility at every level of abstraction', 'Room for evolutionary change without breaking consumers'],
+    redFlags: ['God objects or interfaces that do too many things', 'Tight coupling between components that should be independent', 'Premature optimization or over-specified implementation details'],
+    approves: ['Components communicate through well-defined, minimal interfaces', 'Design allows for change without cascading modifications', 'Abstractions match the current understanding, not hypothetical futures'],
+    modes: {
+      discussion: 'Draws boundaries — "where does this responsibility end?"',
+      critique: 'Challenges coupling — "if I change X, how many other things break?"',
+      socratic: '"What would happen if we split this into two smaller interfaces?"'
+    },
+    focusAreas: ['architecture'],
+    isDefault: true
+  },
+  'michael-nygard': {
+    name: 'Michael Nygard',
+    domain: 'Production Systems & Reliability',
+    methodology: 'Failure mode analysis, circuit breaker patterns, operational excellence',
+    panels: ['spec'], packs: ['core-engineering'],
+    tokens: 300,
+    voice: "What happens when this component fails? Where are the monitoring and recovery mechanisms?",
+    perspective: `Nygard thinks in failure modes. Every system will break — the question is how. He evaluates specs for missing error handling, absent monitoring, unspecified timeouts, and the assumption that dependencies are always available.`,
+    looksFor: ['Explicit failure modes and recovery strategies', 'Timeout specifications for every external call', 'Monitoring, alerting, and observability requirements'],
+    redFlags: ['No mention of what happens when a dependency is unavailable', 'Missing timeout values', 'No operational requirements (logging, metrics, health checks)'],
+    approves: ['Every external dependency has a failure mode and recovery plan', 'Timeouts and retry policies are specified with concrete values', 'Operational concerns (monitoring, alerting, runbooks) are addressed'],
+    modes: {
+      discussion: '"Let\'s trace the failure path — component A goes down, then what?"',
+      critique: 'Challenges optimistic assumptions — "you\'re assuming 100% uptime"',
+      socratic: '"What\'s your MTTR target? How would the on-call engineer diagnose this?"'
+    },
+    focusAreas: ['architecture', 'compliance'],
+    autoKeywords: ['reliability', 'failure', 'circuit', 'resilience', 'production']
+  },
+  'sam-newman': {
+    name: 'Sam Newman',
+    domain: 'Distributed Systems & APIs',
+    methodology: 'Service decomposition, API versioning, distributed system patterns',
+    panels: ['spec'], packs: ['core-engineering'],
+    tokens: 280,
+    voice: "How does this specification handle service evolution and backward compatibility?",
+    perspective: `Newman evaluates how services communicate, evolve, and fail independently. He looks for proper service boundaries, API versioning strategies, and whether the spec accounts for the realities of distributed systems — network partitions, eventual consistency, and independent deployability.`,
+    looksFor: ['Well-defined service boundaries', 'API versioning and evolution strategy', 'Independent deployability'],
+    redFlags: ['Services sharing databases or internal state', 'No API versioning strategy', 'Synchronous coupling where async would be safer'],
+    approves: ['Each service owns its data', 'API contracts are versioned and backward-compatible', 'Services can be deployed independently'],
+    modes: {
+      discussion: '"Where are the service boundaries? What data does each service own?"',
+      critique: '"Shared databases are not microservices — that\'s a distributed monolith"',
+      socratic: '"If you need to deploy service A, must you also deploy service B?"'
+    },
+    focusAreas: ['architecture'],
+    autoKeywords: ['api', 'rest', 'graphql', 'microservice', 'distributed']
+  },
+  'gregor-hohpe': {
+    name: 'Gregor Hohpe',
+    domain: 'Enterprise Integration Patterns',
+    methodology: 'Message-driven architecture, integration patterns, event-driven design',
+    panels: ['spec'], packs: ['core-engineering'],
+    tokens: 280,
+    voice: "What's the message exchange pattern here? How do you handle ordering and delivery guarantees?",
+    perspective: `Hohpe evaluates how systems integrate and communicate. He maps data flows, identifies coupling through shared state, and pushes toward message-driven architectures that decouple producers from consumers.`,
+    looksFor: ['Clear message exchange patterns', 'Decoupled producers and consumers', 'Explicit ordering and delivery guarantees'],
+    redFlags: ['Point-to-point integrations with no abstraction', 'Assumption of immediate consistency across systems', 'No error handling for message delivery failures'],
+    approves: ['Integration patterns are named and well-understood', 'Async communication where appropriate', 'Dead letter queues and retry policies specified'],
+    modes: {
+      discussion: '"Let\'s map the data flow — who produces, who consumes, what format?"',
+      critique: '"This integration is brittle — one change cascades everywhere"',
+      socratic: '"What happens if a message is delivered twice? Or not at all?"'
+    },
+    focusAreas: ['architecture'],
+    autoKeywords: ['messaging', 'event', 'queue', 'pubsub', 'integration']
+  },
+  'lisa-crispin': {
+    name: 'Lisa Crispin',
+    domain: 'Agile Testing & Quality',
+    methodology: 'Whole-team testing, risk-based testing, quality attribute specification',
+    panels: ['spec'], packs: ['core-testing'],
+    tokens: 280,
+    voice: "How would the testing team validate this requirement? What are the edge cases and failure scenarios?",
+    perspective: `Crispin sees quality as a whole-team responsibility, not a phase. She evaluates specs for testability — can this be automated? Are edge cases identified? Is the test strategy proportional to the risk?`,
+    looksFor: ['Testability of every requirement', 'Edge case identification and error scenario coverage', 'Test strategy proportional to risk'],
+    redFlags: ['Requirements that can only be validated manually', 'No edge cases or error scenarios mentioned', '"Testing will be done later" attitude'],
+    approves: ['Every requirement has a clear test strategy', 'Edge cases and error scenarios are explicitly listed', 'Risk-based prioritization guides test coverage depth'],
+    modes: {
+      discussion: '"What\'s the test strategy for this? Unit, integration, or E2E?"',
+      critique: '"You can\'t test this requirement as written — it\'s not measurable"',
+      socratic: '"What\'s the riskiest part of this spec? Where would a bug hurt most?"'
+    },
+    focusAreas: ['testing'],
+    isDefault: true
+  },
+  'janet-gregory': {
+    name: 'Janet Gregory',
+    domain: 'Collaborative Testing',
+    methodology: 'Specification workshops, three amigos, quality conversation facilitation',
+    panels: ['spec'], packs: ['core-testing'],
+    tokens: 250,
+    voice: "Did the whole team participate in creating this specification? Are quality expectations clearly defined?",
+    perspective: `Gregory focuses on the collaborative process behind specifications. She evaluates whether all perspectives — business, development, testing — were represented in creating the spec. Specifications written in isolation breed assumptions.`,
+    looksFor: ['Evidence of collaborative specification creation', 'Quality expectations from all perspectives', 'Shared understanding across roles'],
+    redFlags: ['Spec written by one role in isolation', 'No mention of team agreement or review', 'Quality attributes defined without tester input'],
+    approves: ['Three amigos process was followed', 'Quality expectations are shared and explicit', 'Spec has been reviewed by diverse perspectives'],
+    modes: {
+      discussion: '"Who else was in the room when this was written?"',
+      critique: '"This reads like a developer spec — where\'s the business perspective?"',
+      socratic: '"If you showed this to a tester right now, what questions would they ask?"'
+    },
+    focusAreas: ['testing']
+  },
+  'kelsey-hightower': {
+    name: 'Kelsey Hightower',
+    domain: 'Cloud Native & Operations',
+    methodology: 'Cloud-native patterns, infrastructure automation, operational observability',
+    panels: ['spec'], packs: [],
+    tokens: 280,
+    voice: "How does this specification handle cloud-native deployment and operational concerns?",
+    perspective: `Hightower evaluates operational readiness. He looks for deployment strategies, infrastructure requirements, observability, and whether the spec accounts for the realities of cloud-native environments — scaling, health checks, configuration management.`,
+    looksFor: ['Deployment strategy and infrastructure requirements', 'Health checks and readiness probes', 'Configuration management and secrets handling'],
+    redFlags: ['No mention of deployment or operational concerns', 'Hardcoded configuration values', 'No health check or monitoring endpoints'],
+    approves: ['Deployment is automated and repeatable', 'Configuration is externalized', 'Observability is built in from the start'],
+    modes: {
+      discussion: '"How does this get deployed? What does the health check look like?"',
+      critique: '"You\'ve specified the feature but not how to operate it in production"',
+      socratic: '"What happens at 3 AM when this fails and the on-call engineer gets paged?"'
+    },
+    focusAreas: ['compliance'],
+    autoKeywords: ['cloud', 'deploy', 'k8s', 'kubernetes', 'docker', 'infrastructure']
+  }
+};
+
+const FOCUS_AREAS = {
+  requirements: { name: 'Requirements', tag: 'tag-req', lead: 'karl-wiegers', experts: ['karl-wiegers', 'gojko-adzic', 'alistair-cockburn'], description: 'Requirement clarity, completeness, testability' },
+  architecture: { name: 'Architecture', tag: 'tag-arch', lead: 'martin-fowler', experts: ['martin-fowler', 'sam-newman', 'gregor-hohpe', 'michael-nygard'], description: 'Interface design, boundaries, scalability, patterns' },
+  testing: { name: 'Testing', tag: 'tag-test', lead: 'lisa-crispin', experts: ['lisa-crispin', 'janet-gregory', 'gojko-adzic'], description: 'Test strategy, coverage, edge cases, acceptance criteria' },
+  compliance: { name: 'Compliance', tag: 'tag-comp', lead: 'karl-wiegers', experts: ['karl-wiegers', 'michael-nygard', 'kelsey-hightower'], description: 'Regulatory coverage, security, operational requirements' }
+};
+
+const SCORING = { clarity: 0, completeness: 0, testability: 0, consistency: 0 };
+
+// ─── Example Spec (used in live demo) ───
+const EXAMPLE_SPEC = {
+  title: "Metric Print Sizes for EU Market",
+  requirements: [
+    { id: 'R-001', text: 'System SHALL support 6 metric print sizes: A6, A5, A4, 10×15cm, 13×18cm, 20×25cm', status: 'ok' },
+    { id: 'R-002', text: 'All sizes SHALL be stored internally as inches at 96 DPI', status: 'ok' },
+    { id: 'R-003', text: 'Size picker SHALL group sizes by measurement system (Imperial, Metric Photo, Metric ISO)', status: 'ok' },
+    { id: 'R-004', text: 'Per-project measurement system setting SHALL filter which groups appear in UI', status: 'ok' },
+    { id: 'R-005', text: 'Exported SVGs SHALL maintain correct aspect ratios for each size category', status: 'warn' },
+    { id: 'R-006', text: 'Contrast validation SHALL apply uniformly across all sizes per age-range tier', status: 'ok' },
+    { id: 'R-007', text: 'System SHALL handle errors gracefully when invalid sizes are requested', status: 'fail' }
+  ]
+};
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+
+let state = {
+  mode: 'critique',
+  focus: 'requirements',
+  selectedExpert: 'karl-wiegers',
+  view: 'experts' // 'experts' | 'session' | 'scoring'
+};
+
+// ─────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────
+
+function render() {
+  renderControls();
+  renderSidebar();
+  renderContent();
+}
+
+function renderControls() {
+  const el = document.getElementById('controls');
+  const modes = ['critique', 'discussion', 'socratic'];
+  const focuses = Object.keys(FOCUS_AREAS);
+
+  el.innerHTML = `
+    <div class="control-group">
+      <label>Mode</label>
+      ${modes.map(m => `<button class="ctrl-btn ${state.mode === m ? 'active' : ''}" onclick="setMode('${m}')">${m}</button>`).join('')}
+    </div>
+    <div class="control-group">
+      <label>Focus</label>
+      ${focuses.map(f => `<button class="ctrl-btn ${state.focus === f ? 'active' : ''}" onclick="setFocus('${f}')">${f}</button>`).join('')}
+    </div>
+    <div class="control-group" style="margin-left:auto;">
+      <label>View</label>
+      <button class="ctrl-btn ${state.view === 'experts' ? 'active' : ''}" onclick="setView('experts')">Experts</button>
+      <button class="ctrl-btn ${state.view === 'session' ? 'active' : ''}" onclick="setView('session')">Live Session</button>
+      <button class="ctrl-btn ${state.view === 'scoring' ? 'active' : ''}" onclick="setView('scoring')">Scoring</button>
+    </div>
+  `;
+}
+
+function renderSidebar() {
+  const el = document.getElementById('sidebar');
+  const focus = FOCUS_AREAS[state.focus];
+  const activeExperts = focus.experts;
+  const sortedKeys = Object.keys(EXPERTS).sort((a, b) => {
+    const aActive = activeExperts.includes(a);
+    const bActive = activeExperts.includes(b);
+    if (aActive && !bActive) return -1;
+    if (!aActive && bActive) return 1;
+    return 0;
+  });
+
+  let html = `<div class="sidebar-title">Panel: ${focus.name} Focus (${activeExperts.length} experts)</div>`;
+
+  sortedKeys.forEach(key => {
+    const e = EXPERTS[key];
+    const isActive = activeExperts.includes(key);
+    const isLead = key === focus.lead;
+    const isDefault = e.isDefault;
+    const isAuto = e.autoKeywords && !isActive;
+
+    let badge = '';
+    if (isLead) badge = '<span class="expert-badge badge-lead">LEAD</span>';
+    else if (isDefault && isActive) badge = '<span class="expert-badge badge-default">DEFAULT</span>';
+    else if (isAuto) badge = '<span class="expert-badge badge-auto">AUTO</span>';
+
+    html += `
+      <div class="expert-card ${state.selectedExpert === key ? 'active' : ''} ${!isActive ? 'dimmed' : ''}" onclick="selectExpert('${key}')">
+        ${badge}
+        <div class="expert-name">${e.name}</div>
+        <div class="expert-domain">${e.domain}</div>
+        <div class="token-cost">~${e.tokens} tokens</div>
+      </div>
+    `;
+  });
+
+  el.innerHTML = html;
+}
+
+function renderContent() {
+  const el = document.getElementById('content');
+  if (state.view === 'experts') renderExpertView(el);
+  else if (state.view === 'session') renderSessionView(el);
+  else renderScoringView(el);
+}
+
+function renderExpertView(el) {
+  const e = EXPERTS[state.selectedExpert];
+  const focus = FOCUS_AREAS[state.focus];
+  const isOnPanel = focus.experts.includes(state.selectedExpert);
+
+  el.innerHTML = `
+    <div class="content-grid">
+      <div class="card full">
+        <h3>${e.name} <span class="tag tag-${state.focus === 'requirements' ? 'req' : state.focus === 'architecture' ? 'arch' : state.focus === 'testing' ? 'test' : 'comp'}">${FOCUS_AREAS[state.focus].name} Panel</span>
+        ${!isOnPanel ? '<span class="tag" style="background:rgba(248,81,73,0.15);color:var(--red);">Not on this panel</span>' : ''}
+        ${state.selectedExpert === focus.lead ? '<span class="tag" style="background:rgba(210,153,34,0.15);color:var(--yellow);">Panel Lead</span>' : ''}</h3>
+        <div class="body">
+          <div class="quote">
+            "${e.voice}"
+            <div class="attribution">— ${e.name}, typical ${state.mode} mode response</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Perspective</h3>
+        <div class="body"><p>${e.perspective}</p></div>
+      </div>
+
+      <div class="card">
+        <h3>Methodology</h3>
+        <div class="body">
+          <p><code>${e.methodology}</code></p>
+          <p style="margin-top:12px;"><strong>In ${state.mode} mode:</strong></p>
+          <div class="quote" style="border-left-color:var(--purple);">${e.modes[state.mode]}</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Looks For <span class="tag tag-req">approves</span></h3>
+        <div class="body">
+          <ul>${e.looksFor.map(l => `<li><span class="ok">${l}</span></li>`).join('')}</ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Red Flags <span class="tag" style="background:rgba(248,81,73,0.15);color:var(--red);">rejects</span></h3>
+        <div class="body">
+          <ul>${e.redFlags.map(r => `<li><span class="danger">${r}</span></li>`).join('')}</ul>
+        </div>
+      </div>
+
+      <div class="card full">
+        <h3>Approval Criteria</h3>
+        <div class="body">
+          <p class="dim">This expert gives a passing score when:</p>
+          <ul>${e.approves.map(a => `<li>${a}</li>`).join('')}</ul>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSessionView(el) {
+  const focus = FOCUS_AREAS[state.focus];
+  const panelExperts = focus.experts.map(k => EXPERTS[k]);
+
+  const modeLabel = { critique: 'Critique Mode — Systematic Review', discussion: 'Discussion Mode — Collaborative Improvement', socratic: 'Socratic Mode — Deep Questioning' };
+
+  let sessionContent = '';
+
+  if (state.mode === 'critique') {
+    sessionContent = panelExperts.map((e, i) => {
+      const key = focus.experts[i];
+      const isLead = key === focus.lead;
+      const reviews = getExpertCritiqueForFocus(key, state.focus);
+      return `
+        <div class="card full">
+          <h3>${e.name} ${isLead ? '<span class="tag" style="background:rgba(210,153,34,0.15);color:var(--yellow);">Lead Reviewer</span>' : ''}</h3>
+          <div class="body"><pre>${reviews}</pre></div>
+        </div>
+      `;
+    }).join('');
+  } else if (state.mode === 'discussion') {
+    sessionContent = `<div class="card full">
+      <h3>Panel Discussion <span class="tag tag-mode">${focus.name} Focus</span></h3>
+      <div class="body"><pre>${getDiscussionForFocus(state.focus)}</pre></div>
+    </div>`;
+  } else {
+    sessionContent = `<div class="card full">
+      <h3>Socratic Inquiry <span class="tag tag-mode">${focus.name} Focus</span></h3>
+      <div class="body"><pre>${getSocraticForFocus(state.focus)}</pre></div>
+    </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="nav-tabs">
+      <div class="nav-tab active">${modeLabel[state.mode]}</div>
+    </div>
+
+    <div class="card full" style="margin-bottom:20px;">
+      <h3>Spec Under Review <span class="tag tag-req">${EXAMPLE_SPEC.title}</span></h3>
+      <div class="body">
+        <pre>${EXAMPLE_SPEC.requirements.map(r =>
+          `<span class="${r.status === 'ok' ? 'ok' : r.status === 'warn' ? 'warn' : 'danger'}">${r.status === 'ok' ? '✓' : r.status === 'warn' ? '⚠' : '✗'}</span> <span class="hl">${r.id}:</span> ${r.text}`
+        ).join('\n')}</pre>
+      </div>
+    </div>
+
+    <div class="content-grid">${sessionContent}</div>
+
+    <div class="card full" style="margin-top:20px;">
+      <h3>Panel Consensus</h3>
+      <div class="body"><pre>${getConsensus(state.focus)}</pre></div>
+    </div>
+  `;
+}
+
+function renderScoringView(el) {
+  const scores = getScoringForFocus(state.focus);
+
+  el.innerHTML = `
+    <div class="content-grid">
+      <div class="card full">
+        <h3>Quality Assessment <span class="tag tag-mode">${FOCUS_AREAS[state.focus].name} Focus</span></h3>
+        <div class="body">
+          <div style="text-align:center;margin:20px 0;">
+            <div style="font-size:48px;font-weight:700;color:${scores.overall >= 7 ? 'var(--green)' : scores.overall >= 5 ? 'var(--yellow)' : 'var(--red)'};">${scores.overall.toFixed(1)}</div>
+            <div style="font-size:14px;color:var(--text-dim);">Overall Score / 10</div>
+            <div style="font-size:12px;margin-top:4px;color:${scores.overall >= 7 ? 'var(--green)' : 'var(--red)'};">${scores.overall >= 7 ? 'PASSES — Ready for graduation' : 'BELOW THRESHOLD — Stays in Refining'}</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Pass threshold: 7.0</div>
+          </div>
+
+          ${Object.entries(scores.dimensions).map(([dim, val]) => `
+            <div class="score-row">
+              <span class="score-label">${dim.charAt(0).toUpperCase() + dim.slice(1)}</span>
+              <div class="score-bar"><div class="score-fill" style="width:${val * 10}%;background:${val >= 7 ? 'var(--green)' : val >= 5 ? 'var(--yellow)' : 'var(--red)'};"></div></div>
+              <span class="score-val" style="color:${val >= 7 ? 'var(--green)' : val >= 5 ? 'var(--yellow)' : 'var(--red)'}">${val.toFixed(1)}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Critical Issues</h3>
+        <div class="body"><pre>${scores.criticalIssues}</pre></div>
+      </div>
+
+      <div class="card">
+        <h3>Improvement Roadmap</h3>
+        <div class="body"><pre>${scores.roadmap}</pre></div>
+      </div>
+
+      <div class="card full">
+        <h3>Per-Expert Scores</h3>
+        <div class="body">
+          ${FOCUS_AREAS[state.focus].experts.map(key => {
+            const e = EXPERTS[key];
+            const s = scores.expertScores[key] || 7;
+            return `<div class="score-row">
+              <span class="score-label">${e.name}</span>
+              <div class="score-bar"><div class="score-fill" style="width:${s * 10}%;background:${s >= 7 ? 'var(--green)' : s >= 5 ? 'var(--yellow)' : 'var(--red)'};"></div></div>
+              <span class="score-val" style="color:${s >= 7 ? 'var(--green)' : s >= 5 ? 'var(--yellow)' : 'var(--red)'}">${s.toFixed(1)}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ─────────────────────────────────────────────
+// EXAMPLE SESSION CONTENT
+// ─────────────────────────────────────────────
+
+function getExpertCritiqueForFocus(expertKey, focus) {
+  const data = {
+    requirements: {
+      'karl-wiegers': `<span class="hl">KARL WIEGERS — Requirements Quality Assessment</span>
+
+<span class="danger">✗ CRITICAL:</span> R-007 "handle errors gracefully" — classic
+  ambiguity. What errors? What constitutes graceful? This
+  is untestable as written.
+  <span class="purple">RECOMMENDATION:</span> Replace with: "System SHALL return
+  HTTP 400 with error code INVALID_SIZE when an
+  unsupported size string is requested."
+  <span class="warn">PRIORITY:</span> High — affects testability and validation
+  <span class="dim">QUALITY IMPACT:</span> +40% testability, +60% clarity
+
+<span class="warn">⚠ MAJOR:</span> R-005 "maintain correct aspect ratios" — which
+  aspect ratio for each category? A4 is 1:√2, metric
+  photo varies. Need explicit mapping table.
+  <span class="purple">RECOMMENDATION:</span> Add sub-requirements:
+  R-005a: ISO sizes use 1:√2 (1:1.4142)
+  R-005b: 10×15cm uses 2:3, 13×18cm uses 13:18, 20×25cm uses 4:5
+  <span class="warn">PRIORITY:</span> High — ambiguity will cause implementation bugs
+
+<span class="ok">✓ GOOD:</span> R-001 through R-004 are specific, measurable,
+  and traceable to the EU market business need.
+<span class="ok">✓ GOOD:</span> R-006 correctly references existing age-range
+  tiers rather than redefining them.
+
+<span class="dim">Score: 6.8 / 10 — two critical issues prevent graduation</span>`,
+
+      'gojko-adzic': `<span class="hl">GOJKO ADZIC — Specification Testability</span>
+
+<span class="warn">⚠ MAJOR:</span> No concrete examples provided for any
+  requirement. I need to SEE what these sizes look like
+  in practice, not just read about them.
+
+  <span class="purple">RECOMMENDATION:</span> Add Given/When/Then scenarios:
+
+  <span class="ok">Given</span> a project with measurement_system = "metric_iso"
+  <span class="ok">When</span> the seller opens the size picker
+  <span class="ok">Then</span> they see: A6 (105×148mm), A5 (148×210mm), A4 (210×297mm)
+  <span class="ok">And</span> they do NOT see: 4×6", 5×7", 8×10"
+
+  <span class="ok">Given</span> an A4 export with a 200×200px source image
+  <span class="ok">When</span> the system applies aspect ratio correction
+  <span class="ok">Then</span> the output is 210×297mm at 96 DPI (793×1122px)
+  <span class="ok">And</span> content is center-cropped, not stretched
+
+<span class="danger">✗ MISSING:</span> No edge case examples:
+  - What if the seller switches from imperial to metric
+    on a project that already has exports?
+  - What about batch export with mixed sizes?
+
+<span class="dim">Score: 6.5 / 10 — needs concrete examples before I approve</span>`,
+
+      'alistair-cockburn': `<span class="hl">ALISTAIR COCKBURN — Use Case Analysis</span>
+
+<span class="ok">✓ GOOD:</span> Primary actor is clear — "Etsy seller" with
+  the goal of "list accurate dimensions for EU customers."
+  Business purpose is traceable.
+
+<span class="warn">⚠ MINOR:</span> Missing extension scenarios:
+  - What if the seller selects metric but their Etsy
+    listing template expects imperial?
+  - What if a buyer requests a custom size not in
+    the predefined list?
+
+<span class="ok">✓ GOOD:</span> Goal levels are appropriate — user-goal level,
+  not too abstract, not too detailed.
+
+<span class="dim">Score: 7.5 / 10 — fundamentally sound, minor gaps</span>`
+    },
+
+    architecture: {
+      'martin-fowler': `<span class="hl">MARTIN FOWLER — Interface Design Assessment</span>
+
+<span class="ok">✓ GOOD:</span> PrintSize enum extension is clean — new entries
+  follow the same pattern as existing imperial sizes.
+  No coupling introduced.
+
+<span class="warn">⚠ MINOR:</span> The conversion layer (mm → inches) should be
+  a pure function with no side effects. Currently the
+  spec doesn't explicitly state this, leaving room for
+  someone to add state or caching.
+  <span class="purple">RECOMMENDATION:</span> Add: "Conversion functions SHALL be
+  pure — same input always produces same output, no
+  side effects, no caching."
+
+<span class="ok">✓ GOOD:</span> viewBox remains "0 0 100 100" — scaling at
+  export preserves separation of concerns between
+  content authoring and output formatting.
+
+<span class="dim">Score: 8.0 / 10 — architecturally clean, minor spec gap</span>`,
+
+      'sam-newman': `<span class="hl">SAM NEWMAN — Service Boundaries</span>
+
+<span class="ok">✓ GOOD:</span> This is a model extension, not a new service.
+  No new service boundaries needed. PrintSize belongs
+  in the core domain model.
+
+<span class="ok">✓ GOOD:</span> No API contract changes that would break
+  existing consumers — new sizes are additive.
+
+<span class="dim">Score: 8.5 / 10 — minimal scope, clean extension</span>`,
+
+      'gregor-hohpe': `<span class="hl">GREGOR HOHPE — Integration Assessment</span>
+
+<span class="ok">✓ N/A:</span> This feature doesn't introduce new integration
+  points. Data flow stays within the existing export
+  pipeline. No messaging or event concerns.
+
+<span class="dim">Score: 8.0 / 10 — no integration concerns</span>`,
+
+      'michael-nygard': `<span class="hl">MICHAEL NYGARD — Operational Readiness</span>
+
+<span class="warn">⚠ MINOR:</span> What happens if a floating-point conversion
+  from mm to inches produces a value that causes layout
+  overflow in the SVG renderer? At 96 DPI, A4 is
+  793.7×1122.5px — are fractional pixels handled?
+  <span class="purple">RECOMMENDATION:</span> Specify rounding strategy for
+  subpixel values (round, floor, ceil).
+
+<span class="ok">✓ GOOD:</span> No new failure modes introduced. Export
+  pipeline already handles size validation.
+
+<span class="dim">Score: 7.5 / 10 — minor operational gap</span>`
+    },
+
+    testing: {
+      'lisa-crispin': `<span class="hl">LISA CRISPIN — Test Strategy Assessment</span>
+
+<span class="ok">✓ GOOD:</span> Test strategy identified: 3 unit test files
+  + 1 integration test. Proportional to risk level.
+
+<span class="warn">⚠ MAJOR:</span> No edge case test scenarios specified:
+  - What about sizes at the boundary of minimum
+    resolution? (e.g., A6 at low DPI)
+  - Round-trip test: create metric → export → reimport
+    → verify dimensions match?
+
+<span class="purple">RECOMMENDATION:</span> Add risk matrix:
+  <span class="danger">High risk:</span> Aspect ratio calculation (math errors
+  compound across thousands of exports)
+  <span class="warn">Medium risk:</span> UI size picker filtering
+  <span class="ok">Low risk:</span> Contrast validation (reuses existing)
+
+<span class="dim">Score: 7.0 / 10 — strategy exists but lacks edge cases</span>`,
+
+      'janet-gregory': `<span class="hl">JANET GREGORY — Collaborative Quality</span>
+
+<span class="warn">⚠ QUESTION:</span> Was a specification workshop held for
+  this feature? The EU market requirement came from
+  customer reviews — was the product owner consulted
+  about prioritization vs. other market requests?
+
+<span class="ok">✓ GOOD:</span> Spec covers business need, technical approach,
+  and testing — all three perspectives represented.
+
+<span class="dim">Score: 7.5 / 10 — quality expectations are clear</span>`,
+
+      'gojko-adzic': `<span class="hl">GOJKO ADZIC — Example Coverage for Testing</span>
+
+<span class="warn">⚠ MAJOR:</span> The test plan references "6 test cases,
+  one per new size" — that's happy path only. Need:
+
+  <span class="ok">Given</span> a collection with 500 glyphs at A4 size
+  <span class="ok">When</span> batch export runs
+  <span class="ok">Then</span> all 500 exports complete within 60 seconds
+  <span class="ok">And</span> each has correct 1:√2 aspect ratio
+
+  <span class="ok">Given</span> an empty string as size parameter
+  <span class="ok">When</span> export is requested
+  <span class="ok">Then</span> HTTP 400 returned with INVALID_SIZE error code
+
+<span class="dim">Score: 6.5 / 10 — need error and performance scenarios</span>`
+    },
+
+    compliance: {
+      'karl-wiegers': `<span class="hl">KARL WIEGERS — Compliance Coverage</span>
+
+<span class="ok">✓ GOOD:</span> R-006 explicitly states contrast validation
+  applies uniformly — no size-specific bypass possible.
+
+<span class="ok">✓ GOOD:</span> Font license requirement is unchanged — metric
+  sizes don't introduce new font concerns.
+
+<span class="warn">⚠ MINOR:</span> Should the spec reference WCAG contrast
+  standards explicitly? Currently relies on project-
+  level contrast tiers defined in CLAUDE.md.
+
+<span class="dim">Score: 8.0 / 10 — solid compliance coverage</span>`,
+
+      'michael-nygard': `<span class="hl">MICHAEL NYGARD — Operational Compliance</span>
+
+<span class="ok">✓ GOOD:</span> No new audit trail requirements — existing
+  export logging covers metric sizes automatically.
+
+<span class="ok">✓ GOOD:</span> Data integrity: storing everything as inches
+  means no conversion inconsistencies in the database.
+
+<span class="dim">Score: 8.5 / 10 — operationally sound</span>`,
+
+      'kelsey-hightower': `<span class="hl">KELSEY HIGHTOWER — Deployment & Operations</span>
+
+<span class="ok">✓ GOOD:</span> No infrastructure changes needed. This is a
+  code-level change — no new services, no new config.
+
+<span class="ok">✓ N/A:</span> No cloud-native concerns for this feature.
+
+<span class="dim">Score: 9.0 / 10 — zero operational impact</span>`
+    }
+  };
+
+  return (data[focus] && data[focus][expertKey]) || `<span class="dim">${EXPERTS[expertKey].name} — no specific findings for ${FOCUS_AREAS[focus].name} focus.</span>`;
+}
+
+function getDiscussionForFocus(focus) {
+  const discussions = {
+    requirements: `<span class="hl">KARL WIEGERS:</span> "The core requirements R-001 through R-004
+are solid — specific, measurable, traceable to the EU market
+need. But R-007 is a red flag. 'Handle errors gracefully'
+is the number one requirement anti-pattern. What does
+graceful mean? Who defines it?"
+
+<span class="hl">GOJKO ADZIC:</span> "Building on Karl's point — let me make
+this concrete. What actually happens when someone requests
+size 'B4' which isn't in our list? Show me the example:
+
+  Given: export request with size='B4'
+  When: the system processes the request
+  Then: ??? — this is what R-007 should specify.
+
+I'd write it as: Then HTTP 400 with body containing
+error_code='INVALID_SIZE' and a list of valid sizes."
+
+<span class="hl">ALISTAIR COCKBURN:</span> "Let's step back — R-005 says
+'maintain correct aspect ratios' but whose definition of
+correct? The seller's? The printer's? For the Etsy use case,
+the seller wants prints that look right when cut. So 'correct'
+means 'matches the physical paper dimensions without
+distortion.' Let's name that goal explicitly."
+
+<span class="hl">KARL WIEGERS:</span> "Alistair is right — and this connects to
+R-005. We need a mapping table: each metric size → its exact
+aspect ratio → what happens when source content doesn't match
+(center-crop, letterbox, or reject). Three different
+strategies, each with different implications."
+
+<span class="hl">GOJKO ADZIC:</span> "Perfect — here are the examples:
+
+  Given: source image is 1:1 (square)
+  When: exported to A4 (1:√2)
+  Then: center-cropped to fill, 29.3% of width trimmed
+
+  Given: source image is 2:3 (matches 10×15cm)
+  When: exported to 10×15cm
+  Then: no cropping needed, exact fit"`,
+
+    architecture: `<span class="hl">MARTIN FOWLER:</span> "The PrintSize enum extension is the
+right approach here. We're adding new values to an existing
+type, not creating a new abstraction. The conversion layer
+is where I want to focus — it needs to be pure."
+
+<span class="hl">SAM NEWMAN:</span> "Agreed. This isn't a service boundary question
+at all. It's a model enrichment. The interesting architectural
+question is the conversion layer — do we convert at input
+time (when the user selects a size) or at output time (when
+we export)?"
+
+<span class="hl">MARTIN FOWLER:</span> "Convert at input. Store everything as
+inches internally. The conversion function is a simple
+multiplier — 1 inch = 25.4mm. Make it a class method on
+PrintSize. That way every consumer gets inches without
+knowing the source unit."
+
+<span class="hl">MICHAEL NYGARD:</span> "One operational concern — floating point
+precision. 210mm ÷ 25.4 = 8.267716... inches. At 96 DPI
+that's 793.7... pixels. How do we handle the fractional
+pixel? Floor it? Round it? This matters when tiling patterns
+at the edges."
+
+<span class="hl">MARTIN FOWLER:</span> "Good catch. The spec should state a
+rounding strategy. I'd recommend round-half-even (banker's
+rounding) to avoid systematic bias. Add it as a non-functional
+requirement."`,
+
+    testing: `<span class="hl">LISA CRISPIN:</span> "The test strategy is proportional to risk
+— 3 unit files + 1 integration. But I want to push on edge
+cases. What's the riskiest thing here?"
+
+<span class="hl">GOJKO ADZIC:</span> "The aspect ratio calculation. If the math
+is wrong on A4, every single A4 export will be distorted.
+And sellers might not notice until a customer complains about
+a miscut print. That's a high-risk, high-volume concern."
+
+<span class="hl">JANET GREGORY:</span> "Have we thought about the testing pyramid
+for this? Unit tests cover the conversion math. But the
+integration test should cover the full path: select metric
+size → render SVG → export at size → verify pixel dimensions."
+
+<span class="hl">LISA CRISPIN:</span> "Exactly. And we need a boundary test —
+what's the smallest metric size we support? A6 at 96 DPI is
+397×559 pixels. At that resolution, is there enough detail
+for a contrast card with readable text?"
+
+<span class="hl">GOJKO ADZIC:</span> "That's a great example to add to the spec:
+
+  Given: contrast card with 12pt text rendered at A6 size
+  When: exported at 96 DPI (397×559px)
+  Then: text passes minimum readability threshold
+
+  This would catch a real user problem — too-small prints."`,
+
+    compliance: `<span class="hl">KARL WIEGERS:</span> "The spec correctly states that contrast
+validation applies uniformly across all sizes. This is
+critical — there must be no size-specific bypass."
+
+<span class="hl">MICHAEL NYGARD:</span> "From an operational standpoint, the
+audit trail is covered. Export events are already logged with
+the size parameter. Adding 'A4' or '10x15' to the existing
+log schema requires no new infrastructure."
+
+<span class="hl">KELSEY HIGHTOWER:</span> "No deployment changes needed. This is
+purely a code change — no new services, no new config maps,
+no new secrets. The risk to production is minimal."
+
+<span class="hl">KARL WIEGERS:</span> "One thing I'd add — should we reference
+WCAG 2.1 contrast standards explicitly in the spec? Currently
+we rely on the project-level contrast tiers in CLAUDE.md. An
+explicit reference would make the compliance chain auditable."
+
+<span class="hl">MICHAEL NYGARD:</span> "Agreed. Traceability matters. If
+someone asks 'why is 7:1 the threshold for infants?' we
+should be able to point to WCAG AA and our age-range
+interpretation table."`
+  };
+
+  return discussions[focus] || 'No discussion content for this focus area.';
+}
+
+function getSocraticForFocus(focus) {
+  const socratic = {
+    requirements: `<span class="hl">ALISTAIR COCKBURN:</span> "What is the fundamental problem
+this specification is trying to solve? Is it 'support metric
+sizes' or is it 'help EU sellers describe their products
+accurately'? Those are different goals with different scope."
+
+<span class="hl">KARL WIEGERS:</span> "Who are the primary stakeholders affected
+by this change? The Etsy seller, certainly. But what about
+the buyer who receives the print? And the print shop that
+produces it? Are their needs captured?"
+
+<span class="hl">GOJKO ADZIC:</span> "What would happen if we removed R-005
+entirely — no aspect ratio handling? Would sellers notice?
+Would buyers complain? If the answer is 'they'd get
+stretched prints,' then we know R-005 is load-bearing.
+If the answer is 'nothing changes,' we're overengineering."
+
+<span class="hl">ALISTAIR COCKBURN:</span> "What happens if a seller starts
+a project with imperial sizes, creates 50 contrast cards,
+and then switches to metric? Do we convert existing
+exports? Regenerate them? Or just apply metric going
+forward? This extension scenario is missing."
+
+<span class="hl">KARL WIEGERS:</span> "If you had to pick ONE requirement from
+this spec that would deliver 80% of the value, which would
+it be? That's your MVP. Everything else is Phase 2."
+
+<span class="hl">GOJKO ADZIC:</span> "How would you explain this feature to a
+seller who has never heard of A4 paper? If you can't
+explain it simply, the UI will be confusing too."`,
+
+    architecture: `<span class="hl">MARTIN FOWLER:</span> "What would happen if we split the
+PrintSize into ImperialSize and MetricSize types instead of
+one enum? Would that make the conversion layer cleaner or
+more complex? I'm not advocating for it — I'm testing
+whether the current design is the simplest that works."
+
+<span class="hl">MICHAEL NYGARD:</span> "What happens at 3 AM when a batch
+export of 10,000 A4 cards hits a floating-point edge case
+and produces SVGs that are 1 pixel too narrow? How would
+the on-call engineer diagnose this? Is there a log entry
+that shows the conversion calculation?"
+
+<span class="hl">MARTIN FOWLER:</span> "If you needed to add B-series paper
+sizes next month (B4, B5), how much of this spec would
+you need to change? If the answer is 'just add entries
+to the enum and the ratio table,' the design is
+extensible. If you'd need to touch 5 files, it's not."
+
+<span class="hl">MICHAEL NYGARD:</span> "What assumptions are you making about
+the SVG rendering engine? Does it handle arbitrary
+viewBox-to-pixel scaling correctly at all aspect ratios?
+Have you tested with extreme ratios like A4 (1:1.41)
+vs. the existing 4×6 (2:3)?"`,
+
+    testing: `<span class="hl">LISA CRISPIN:</span> "What's the riskiest part of this spec?
+If you had to pick ONE thing that's most likely to have a
+bug, what would it be?"
+
+<span class="hl">GOJKO ADZIC:</span> "What would happen if the input were empty?
+What if someone requested size='' or size=null? What if
+they requested size='A4' but the project measurement
+system is set to 'imperial'? Should it reject? Convert?"
+
+<span class="hl">JANET GREGORY:</span> "If you showed this spec to a QA engineer
+who's never seen the codebase, could they write tests from
+it? If not, what's missing?"
+
+<span class="hl">LISA CRISPIN:</span> "How do you know the contrast check
+actually runs on metric sizes? Is there a test that would
+catch a regression where someone adds a fast-path that
+skips validation for non-imperial sizes?"
+
+<span class="hl">GOJKO ADZIC:</span> "Can you write a property-based test for
+the conversion: for ALL valid metric sizes, converting to
+inches and back should produce the original value within
+0.01mm tolerance?"`,
+
+    compliance: `<span class="hl">KARL WIEGERS:</span> "What regulatory standards apply to
+children's print products in the EU? Are there specific
+size or material requirements beyond what we've specified?"
+
+<span class="hl">MICHAEL NYGARD:</span> "What audit evidence would you need if
+a customer claimed their print was the wrong size? Can
+you trace from the final product back to the exact
+conversion calculation that was used?"
+
+<span class="hl">KELSEY HIGHTOWER:</span> "What happens if someone deploys a
+version with a conversion bug? How quickly can you detect
+it and roll back? What's the blast radius — how many
+exports could be affected before detection?"
+
+<span class="hl">KARL WIEGERS:</span> "If a new EU regulation changed the
+acceptable contrast ratio for children's products, how
+many files in the codebase would need to change? Is the
+threshold defined in one place or scattered?"`
+  };
+
+  return socratic[focus] || 'No Socratic content for this focus area.';
+}
+
+function getConsensus(focus) {
+  const consensus = {
+    requirements: `<span class="hl">═══ PANEL CONSENSUS ═══</span>
+
+<span class="ok">AGREED:</span>
+  • R-001 through R-004 are solid and ready
+  • R-006 correctly delegates to existing contrast system
+  • Primary actor and business goal are clear
+
+<span class="warn">DISAGREEMENTS:</span>
+  • Wiegers wants R-007 rewritten before proceeding
+  • Adzic wants concrete examples added for ALL requirements
+  • Cockburn considers the missing extension scenario a blocker
+
+<span class="purple">PRIORITY-RANKED IMPROVEMENTS:</span>
+  1. <span class="danger">[HIGH]</span> Rewrite R-007 with specific error codes (Wiegers)
+  2. <span class="danger">[HIGH]</span> Add aspect ratio mapping table to R-005 (Wiegers + Adzic)
+  3. <span class="warn">[MED]</span> Add Given/When/Then examples for R-001, R-003, R-005 (Adzic)
+  4. <span class="dim">[LOW]</span> Add extension scenario for measurement system switch (Cockburn)
+
+<span class="warn">VERDICT: Score 6.9 / 10 — BELOW 7.0 THRESHOLD</span>
+<span class="dim">Item stays in Refining. Address items 1-2, re-submit.</span>`,
+
+    architecture: `<span class="hl">═══ PANEL CONSENSUS ═══</span>
+
+<span class="ok">AGREED:</span>
+  • PrintSize enum extension is the correct approach
+  • No new service boundaries needed
+  • Conversion layer should be pure functions
+  • viewBox preservation is architecturally sound
+
+<span class="warn">DISAGREEMENTS:</span>
+  • Nygard wants rounding strategy specified explicitly
+  • Newman is satisfied — no architectural concerns
+  • Fowler wants explicit "no side effects" requirement
+
+<span class="purple">PRIORITY-RANKED IMPROVEMENTS:</span>
+  1. <span class="warn">[MED]</span> Specify rounding strategy for subpixel values (Nygard)
+  2. <span class="dim">[LOW]</span> Add purity constraint for conversion functions (Fowler)
+
+<span class="ok">VERDICT: Score 8.0 / 10 — PASSES</span>`,
+
+    testing: `<span class="hl">═══ PANEL CONSENSUS ═══</span>
+
+<span class="ok">AGREED:</span>
+  • Test strategy is proportional to risk level
+  • Aspect ratio calculation is the highest-risk area
+  • Integration test should cover full export path
+
+<span class="warn">DISAGREEMENTS:</span>
+  • Crispin wants boundary tests for minimum resolution
+  • Adzic wants error scenario examples before proceeding
+  • Gregory satisfied with collaborative quality level
+
+<span class="purple">PRIORITY-RANKED IMPROVEMENTS:</span>
+  1. <span class="warn">[MED]</span> Add error scenario test examples (Adzic)
+  2. <span class="warn">[MED]</span> Add boundary test for A6 at minimum DPI (Crispin)
+  3. <span class="dim">[LOW]</span> Add property-based test for conversion roundtrip (Adzic)
+
+<span class="ok">VERDICT: Score 7.0 / 10 — PASSES (barely)</span>`,
+
+    compliance: `<span class="hl">═══ PANEL CONSENSUS ═══</span>
+
+<span class="ok">AGREED:</span>
+  • Contrast validation is uniformly enforced
+  • No new audit trail requirements
+  • No deployment changes needed
+  • Compliance chain is traceable
+
+<span class="purple">PRIORITY-RANKED IMPROVEMENTS:</span>
+  1. <span class="dim">[LOW]</span> Add explicit WCAG reference for contrast thresholds (Wiegers)
+
+<span class="ok">VERDICT: Score 8.5 / 10 — PASSES</span>`
+  };
+  return consensus[focus] || '';
+}
+
+function getScoringForFocus(focus) {
+  const scoring = {
+    requirements: {
+      overall: 6.9,
+      dimensions: { clarity: 6.5, completeness: 7.2, testability: 6.5, consistency: 7.5 },
+      expertScores: { 'karl-wiegers': 6.8, 'gojko-adzic': 6.5, 'alistair-cockburn': 7.5 },
+      criticalIssues: `<span class="danger">✗ R-007</span> is untestable — "handle errors gracefully"
+  lacks specific error codes and response formats.
+  Blocks graduation.
+
+<span class="warn">⚠ R-005</span> is ambiguous — "correct aspect ratios"
+  without a mapping table invites interpretation
+  errors during implementation.
+
+<span class="dim">Both issues must be resolved before re-submission.</span>`,
+      roadmap: `<span class="danger">Immediate:</span>
+  • Rewrite R-007 with HTTP status codes + error schema
+  • Add aspect ratio mapping table to R-005
+
+<span class="warn">Short-term:</span>
+  • Add Given/When/Then examples for complex requirements
+  • Document extension scenario (system switch on existing projects)
+
+<span class="dim">Long-term:</span>
+  • B-series paper sizes (deferred per panel recommendation)`
+    },
+    architecture: {
+      overall: 8.0,
+      dimensions: { clarity: 8.5, completeness: 7.5, testability: 8.0, consistency: 8.0 },
+      expertScores: { 'martin-fowler': 8.0, 'sam-newman': 8.5, 'gregor-hohpe': 8.0, 'michael-nygard': 7.5 },
+      criticalIssues: `<span class="ok">No critical issues.</span>
+
+<span class="warn">⚠ Minor:</span> Rounding strategy for subpixel conversion
+  not specified. Won't block but should be addressed.`,
+      roadmap: `<span class="warn">Short-term:</span>
+  • Add rounding strategy specification
+  • Add purity constraint for conversion functions
+
+<span class="ok">Architecture is clean — minimal changes needed.</span>`
+    },
+    testing: {
+      overall: 7.0,
+      dimensions: { clarity: 7.5, completeness: 6.5, testability: 7.0, consistency: 7.0 },
+      expertScores: { 'lisa-crispin': 7.0, 'janet-gregory': 7.5, 'gojko-adzic': 6.5 },
+      criticalIssues: `<span class="warn">⚠ Missing:</span> Error scenario test examples — only
+  happy-path coverage specified.
+
+<span class="warn">⚠ Missing:</span> Boundary test for minimum viable resolution
+  at A6 size (397×559px at 96 DPI).`,
+      roadmap: `<span class="warn">Short-term:</span>
+  • Add error scenario Given/When/Then examples
+  • Add A6 minimum resolution boundary test
+  • Consider property-based conversion roundtrip test`
+    },
+    compliance: {
+      overall: 8.5,
+      dimensions: { clarity: 8.5, completeness: 8.0, testability: 9.0, consistency: 8.5 },
+      expertScores: { 'karl-wiegers': 8.0, 'michael-nygard': 8.5, 'kelsey-hightower': 9.0 },
+      criticalIssues: `<span class="ok">No critical or major issues.</span>
+
+<span class="dim">Minor:</span> Explicit WCAG reference would strengthen
+  the compliance audit trail.`,
+      roadmap: `<span class="dim">Long-term:</span>
+  • Add WCAG 2.1 AA reference to contrast requirements
+  • Document age-range interpretation rationale`
+    }
+  };
+  return scoring[focus];
+}
+
+// ─────────────────────────────────────────────
+// EVENT HANDLERS
+// ─────────────────────────────────────────────
+
+function setMode(m) { state.mode = m; render(); }
+function setFocus(f) {
+  state.focus = f;
+  const focusExperts = FOCUS_AREAS[f].experts;
+  if (!focusExperts.includes(state.selectedExpert)) {
+    state.selectedExpert = focusExperts[0];
+  }
+  render();
+}
+function setView(v) { state.view = v; render(); }
+function selectExpert(key) { state.selectedExpert = key; render(); }
+
+// ── Init ──
+render();
+</script>
+</body>
+</html>

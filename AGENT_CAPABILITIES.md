@@ -28,7 +28,6 @@ Each agent entry follows this structure:
 - **Transport:** Native CLI — direct repo access, MCP tools, file I/O
 - **Strengths:**
   - implementation, refactoring, code review, test writing
-  - SVG generation, contrast calculation, export pipeline
   - database migrations, Alembic, SQLModel, SQLite
   - FastAPI routes, Jinja2 templates, vanilla JS
   - bug diagnosis, root cause analysis, crash triage
@@ -39,10 +38,12 @@ Each agent entry follows this structure:
   - architecture design, spec review, API contract design
   - greenlight protocol, quality audit, cleanup passes
 - **Context access:**
-  - Full read/write: all project repos (SVG-PAINT, Tether, Governance, Whitelabel)
-  - vexp index: pre-indexed codebase graph (5280 nodes, 6922 edges)
-  - GitNexus: symbol-level code intelligence (6779 nodes, 18783 edges)
-  - MCP servers: Tether, Context7, Mermaid, Figma, Notion, Linear, HF, MS Learn
+  - Full read/write: all project repos
+  - MCP-based code intelligence indexes
+  - MCP servers — full registry: `~/.claude/MCP-SERVERS.md`
+    - **claude.ai managed:** Context7, Figma, GitHub, Linear, Notion, Playwright, Hugging Face, Mermaid Chart, Miro, Gamma, Canva, WordPress.com, Make, Consensus, Microsoft Learn
+    - **local:** vexp, playwright, filesystem, github, sqlite, comfyui
+    - **custom:** Tether (agent bridge — Google Sheets + HTTP relay)
   - File system: full local access
   - Git: full read/write
 - **Constraints:**
@@ -51,9 +52,6 @@ Each agent entry follows this structure:
   - No internet browsing without WebFetch/WebSearch tools
   - Context window limit (managed by compression, but deep tasks may need chunking)
 - **Historical:**
-  - 92 endpoints implemented in Phase 1a (zero regressions)
-  - 1249 tests written (all passing)
-  - 694 quality findings resolved across 19 audit passes
   - Strong on implementation + test cycles
   - Occasionally over-engineers when scope is ambiguous — benefits from tight AC
 - **Routing weight:** 1.0
@@ -68,7 +66,7 @@ Each agent entry follows this structure:
   - research, competitive analysis, market research
   - large-context document analysis (1M+ token window)
   - spec review, requirements critique (external perspective)
-  - Etsy listing optimization, SEO analysis
+  - marketplace listing optimization, SEO analysis
   - trend analysis, keyword research
   - summarization of long documents
   - brainstorming, ideation expansion
@@ -98,7 +96,7 @@ Each agent entry follows this structure:
 - **Strengths:**
   - copywriting, user-facing documentation
   - marketing copy, product descriptions
-  - Etsy listing titles, tags, descriptions
+  - marketplace listing titles, tags, descriptions
   - educational content, help guides
   - conversational UX copy
   - translation, localization
@@ -175,12 +173,12 @@ Route: @claude (confidence: 1.0)
 
 ### Example 2: Research task
 ```
-Task: "research Etsy SEO trends for contrast card listings"
-Keywords: research, Etsy, SEO, trends, listings
+Task: "research marketplace SEO trends for product listings"
+Keywords: research, marketplace, SEO, trends, listings
 
 @claude:   0 matches + no_web_browsing(-2) = -2
-@gemini:   research(+1) Etsy(+1) SEO(+1) trends(+1) + web_search(+2) = 6
-@chatgpt:  Etsy(+1) listings(+1) + web_browsing(+2) = 4
+@gemini:   research(+1) marketplace(+1) SEO(+1) trends(+1) + web_search(+2) = 6
+@chatgpt:  marketplace(+1) listings(+1) + web_browsing(+2) = 4
 
 Route: @gemini (confidence: 0.75) — requires stub activation first
 Fallback: @claude with WebSearch tool (confidence: 0.5)

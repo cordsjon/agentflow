@@ -1,0 +1,57 @@
+# Panel Definition Template
+# Copy this file and rename to: your-panel.yaml (lowercase, hyphenated)
+
+name: your-panel
+description: "One-line description of what this panel reviews"
+
+# Modes available for this panel
+modes:
+  - discussion    # experts build on each other's insights
+  - critique      # severity-ranked issues with recommendations
+  - socratic      # learning-focused questions
+  - debate        # adversarial stress-testing (optional)
+
+# Focus areas — each assembles a different sub-panel from the expert pool
+focus-areas:
+  - name: default
+    description: "General review"
+    lead: expert-slug          # who leads this focus area
+    experts: [expert-1, expert-2, expert-3]
+
+  - name: focus-area-name
+    description: "What this focus area examines"
+    lead: expert-slug
+    experts: [expert-a, expert-b]
+
+# Default experts — used when no --focus or --experts flag is given
+default-experts: [expert-1, expert-2, expert-3, expert-4]
+
+# Maximum experts on the panel at once (token budget constraint)
+max-experts: 6
+
+# Auto-select rules — add experts dynamically based on task keywords
+# Checked against the task description or spec content
+auto-select:
+  - keywords: [keyword1, keyword2]
+    add: [expert-slug]            # individual expert
+  - keywords: [keyword3, keyword4]
+    add-pack: pack-slug           # entire pack
+
+# Scoring (for gate panels like spec-panel)
+# Set to null for advisory-only panels like business-panel
+scoring:
+  min: 0
+  max: 10
+  pass-threshold: 7.0
+  dimensions:
+    - name: dimension-1
+      description: "What this measures"
+    - name: dimension-2
+      description: "What this measures"
+
+# Output format
+output:
+  default-format: standard        # standard | structured | detailed
+  include-scores: true
+  include-roadmap: true           # immediate / short-term / long-term
+  include-consensus: true         # consensus points + disagreements

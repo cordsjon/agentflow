@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentFlow — Interactive Playgrounds</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2333;
+    --border: #30363d;
+    --border-active: #58a6ff;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --text-bright: #f0f6fc;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --yellow: #d29922;
+    --purple: #bc8cff;
+    --orange: #f0883e;
+    --cyan: #39d2c0;
+    --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 24px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  h1 {
+    font-size: 2.4rem;
+    color: var(--text-bright);
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  h1 span {
+    color: var(--accent);
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 1.1rem;
+    max-width: 500px;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+    max-width: 1000px;
+    width: 100%;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .card:hover {
+    border-color: var(--border-active);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+
+  .card-icon {
+    font-size: 2rem;
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .card-icon.pipeline { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .card-icon.business { background: rgba(63,185,80,0.15); color: var(--green); }
+  .card-icon.spec     { background: rgba(188,140,255,0.15); color: var(--purple); }
+  .card-icon.shepherd { background: rgba(57,210,192,0.15); color: var(--cyan); }
+
+  .card.featured {
+    grid-column: 1 / -1;
+    border-color: var(--cyan);
+  }
+
+  .card h2 {
+    font-size: 1.25rem;
+    color: var(--text-bright);
+    font-weight: 600;
+  }
+
+  .card p {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  .card .tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    align-self: flex-start;
+  }
+
+  footer {
+    margin-top: 64px;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    font-family: var(--mono);
+  }
+
+  footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  footer a:hover {
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>AgentFlow</span> Playgrounds</h1>
+  <p class="subtitle">Interactive demos for the Shepherd AI orchestration framework</p>
+</header>
+
+<div class="cards">
+
+  <a href="shepherd.html" class="card featured">
+    <div class="card-icon shepherd">&#x2725;</div>
+    <h2>Shepherd</h2>
+    <p>Unified AI Agent Governance Framework &mdash; three nested loops, 44 skills, 19 expert panelists, five-layer quality stack.</p>
+    <span class="tag">governance</span>
+  </a>
+
+  <a href="pipeline-playground.html" class="card">
+    <div class="card-icon pipeline">&#9654;</div>
+    <h2>Pipeline Playground</h2>
+    <p>Shepherd Pipeline &mdash; trace the full journey from idea to commit through autonomous agent stages.</p>
+    <span class="tag">pipeline</span>
+  </a>
+
+  <a href="business-panel-playground.html" class="card">
+    <div class="card-icon business">&#9733;</div>
+    <h2>Business Panel</h2>
+    <p>Strategic analysis playground &mdash; multi-expert business evaluation and market intelligence.</p>
+    <span class="tag">analysis</span>
+  </a>
+
+  <a href="spec-panel-playground.html" class="card">
+    <div class="card-icon spec">&#9881;</div>
+    <h2>Spec Panel</h2>
+    <p>Expert specification review &mdash; multi-persona evaluation of technical specifications.</p>
+    <span class="tag">review</span>
+  </a>
+
+</div>
+
+<footer>
+  <a href="https://github.com/cordsjon/agentflow">cordsjon/agentflow</a>
+</footer>
+
+</body>
+</html>
