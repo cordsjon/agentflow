@@ -28,6 +28,13 @@ Skills don't run in isolation — they depend on pipeline state and often chain 
                     │   /sc:workflow   │  Ready → TODO-Today queue
                     └────────┬────────┘
                              │
+                    ┌────────▼────────┐
+                    │  /sh:ux-design  │  (if user flow exists)
+                    │  wireframe →    │  validate → graduate
+                    │  /frontend-     │  → hi-fi on top
+                    │   design        │
+                    └────────┬────────┘
+                             │
               ┌──────────────▼──────────────┐
               │        INNER LOOP           │
               │                             │
@@ -78,6 +85,7 @@ Skills don't run in isolation — they depend on pipeline state and often chain 
 | `/sc:brainstorm` | Raw idea in INBOX or BACKLOG#Ideation | Requirements document |
 | `/requirements-clarity` | Brainstorm output exists | Ambiguity report, clarified requirements |
 | `/sc:spec-panel` | Spec document with US + AC | Score (gate: >= 7.0), improvement suggestions |
+| `/sh:ux-design` | User flow (Figma/Miro/PRD), optional business-panel brief | Clickable wireframe prototype, component mapping, handoff doc |
 | `/sc:design` | Requirements doc (architecture tasks) | Architecture specification |
 | `/sc:workflow` | Ready items in BACKLOG | Populated TODO-Today.md queue |
 | `/test-driven-development` | Task in queue with clear AC | Failing test file |
@@ -128,6 +136,47 @@ User sends: "We need dark mode support"
 
 4. /sc:workflow requirements/SPEC_DARK_MODE.md --strategy systematic
    → Generates 5 queue items in TODO-Today.md
+```
+
+---
+
+### Chain 1b: UX Wireframe Pipeline
+**Trigger:** Feature has a multi-step user flow (onboarding, checkout, wizard, form).
+
+```
+/sh:business-panel "feature PRD" --focus competitive
+    ↓ strategic constraints (JTBD, ICP, risk flags)
+/sh:ux-design <figma-url or PRD>
+    ↓ Phase 1-3: ingest flow → plan → generate wireframe
+    ↓ Phase 4-5: concept branching → compare & decide
+    ↓ Phase 6-8: iterate → graduation gate
+/frontend-design
+    ↓ builds hi-fi ON TOP of wireframe (no restart)
+/sh:plan
+    ↓ implementation plan for remaining backend/integration work
+```
+
+**Example:**
+```
+User sends: "We need an onboarding wizard for new users"
+
+1. /sh:business-panel requirements/PRD_ONBOARDING.md --focus growth
+   → Christensen: JTBD = "get first meeting scheduled within 5 min"
+   → Godin: "reduce steps to under 5 — each step is a drop-off cliff"
+   → Taleb: "if OAuth fails, user is stuck — mandatory fallback"
+
+2. /sh:ux-design figma.com/board/abc123
+   → Generates clickable 5-step wireframe in React (target stack)
+   → Playwright smoke test: all steps clickable, no dead ends
+   → User: "Give me option B as chat-based onboarding"
+   → Concept B generated, comparison table, user picks chat-based
+
+3. /frontend-design
+   → Replaces grayscale with design tokens, placeholders with components
+   → Preserves flow structure and navigation from wireframe
+
+4. /sh:plan
+   → Plans backend API, auth integration, analytics events
 ```
 
 ---
@@ -345,8 +394,9 @@ Changed files: app/services/theme_service.py, app/static/css/shell.css
 
 | Skill | Category | Use When |
 |-------|----------|----------|
+| `/sh:ux-design` | Design | Clickable wireframe prototypes — validate flow before hi-fi |
 | `/figma` | Design | Translating Figma designs into code |
-| `/frontend-design` | Design | Building production-grade UI from scratch |
+| `/frontend-design` | Design | Building production-grade UI from scratch (or graduating a wireframe) |
 | `/canvas-design` | Design | Creating visual artifacts (PNG, PDF) |
 | `/imagegen` | Generation | Generating or editing images via AI |
 | `/algorithmic-art` | Generation | Creating generative art with p5.js |
@@ -404,6 +454,7 @@ These skills are useful but don't have a fixed position in the loop. Invoke them
 | Optimize for search engines | `/seo-audit` → `/seo-optimizer` |
 | Analyze competitors | `/competitor-alternatives` → `/pricing-strategy` |
 | Create visual content | `/canvas-design` or `/imagegen` |
+| Wireframe a user flow | `/sh:ux-design` → `/frontend-design` |
 | Build a UI component | `/frontend-design` or `/figma` |
 | Plan before coding | `/create-plan` or `/writing-plans` |
 | Create a new skill | `/skill-creator` |

@@ -9,7 +9,7 @@ Print the following command reference exactly:
 
 ---
 
-## Shepherd Commands (34)
+## Shepherd Commands (35)
 
 ### Pipeline (5)
 | Command | Description |
@@ -55,6 +55,11 @@ Print the following command reference exactly:
 | `/sh:document` | Generate documentation from code or specifications |
 | `/sh:index-repo` | Index repository structure for fast context retrieval |
 | `/sh:select-tool` | Recommend the best tool or approach for a given problem |
+
+### Design (1)
+| Command | Description |
+|---------|-------------|
+| `/sh:ux-design` | Build clickable wireframe prototypes in code — validate flow before hi-fi |
 
 ### Panels (2)
 | Command | Description |

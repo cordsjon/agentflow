@@ -22,7 +22,7 @@ Shepherd merges four systems into a single product:
 - **SuperClaude's** analysis skills and extensible expert panels
 - **Ralph Loop's** stop-hook persistence for session survival
 
-One install. One namespace (`/sh:`). 34 commands. Zero duplicates.
+One install. One namespace (`/sh:`). 35 commands. Zero duplicates.
 
 Built for software development with coding agents (Claude Code, Cursor, Codex, Devin, etc.), but the loop, pipeline, and quality gates are domain-agnostic. Any work that is **large enough to need a backlog, repetitive enough to benefit from automation, or complex enough to require quality checkpoints** fits the model.
 
@@ -111,7 +111,7 @@ INBOX → BACKLOG (Ideation → Refining → Ready) → TODO-Today → DONE-Toda
 
 ## Skill Integration
 
-All 34 skills use the `/sh:` namespace and plug into specific loop stages:
+All 35 skills use the `/sh:` namespace and plug into specific loop stages:
 
 | Loop Stage | Shepherd Skills |
 |------------|----------------|
@@ -125,6 +125,8 @@ All 34 skills use the `/sh:` namespace and plug into specific loop stages:
 | Retro | `/sh:retro` |
 
 Plus on-demand skills: `/sh:debug`, `/sh:research`, `/sh:explain`, `/sh:estimate`, `/sh:test`, `/sh:document`, `/sh:troubleshoot`, `/sh:index-repo`, `/sh:select-tool`, `/sh:parallel`, `/sh:worktree`, `/sh:plan`.
+
+Design skills: `/sh:ux-design` (wireframe prototyping in code — validate flow before hi-fi).
 
 And expert panels: `/sh:spec-panel` (scoring gate ≥ 7.0), `/sh:business-panel` (advisory).
 ## Getting Started
@@ -177,6 +179,7 @@ git submodule add https://github.com/cordsjon/agentflow .claude/skills/shepherd
 | **Loop** | `/sh:autopilot`, `/sh:loop`, `/sh:dor`, `/sh:dod`, `/sh:retro`, `/sh:handoff` | Autonomous execution, quality gates, retrospectives, session persistence |
 | **Implementation** | `/sh:plan`, `/sh:execute`, `/sh:tdd`, `/sh:verify`, `/sh:review`, `/sh:finish`, `/sh:worktree`, `/sh:parallel` | Planning, TDD, verification, code review, branch completion, parallel agents |
 | **Analysis** | `/sh:analyze`, `/sh:debug`, `/sh:troubleshoot`, `/sh:research`, `/sh:explain`, `/sh:estimate`, `/sh:test`, `/sh:document`, `/sh:index-repo`, `/sh:select-tool` | Code analysis, debugging, research, estimation, documentation |
+| **Design** | `/sh:ux-design` | Clickable wireframe prototypes in code — validate flow before hi-fi |
 | **Expert Panels** | `/sh:spec-panel`, `/sh:business-panel` | Multi-expert review (spec gate ≥ 7.0, business advisory) |
 | **Persistence** | `/sh:ralph` | Ralph Loop stop-hook for session survival |
 | **Meta** | `/sh:cancel`, `/sh:help` | Cancel operations, command reference |

@@ -68,6 +68,8 @@ digraph brainstorming {
 
 **The terminal state is invoking `/sh:plan`.** Do NOT invoke any other implementation skill. The ONLY skill you invoke after brainstorming is `/sh:plan`.
 
+**Exception:** If the brainstormed feature has a user-facing flow (onboarding, checkout, wizard, multi-step form), suggest `/sh:ux-design` before `/sh:plan`: "This feature has a multi-step user flow. Consider running `/sh:ux-design` to build a clickable wireframe first, then `/sh:plan` for the full implementation." The user decides which path.
+
 ## The Process
 
 **Understanding the idea:**
