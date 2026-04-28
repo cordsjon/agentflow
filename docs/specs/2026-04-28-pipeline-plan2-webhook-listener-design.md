@@ -112,6 +112,8 @@ Sandbox emits every 5 minutes during RUNNING/VERIFYING. No body fields beyond th
 ```
 Used by the deploy smoke check and by Plan 1's `/pipeline/health` to fill its `webhook` field.
 
+**NPM exemption:** the bearer-token `advanced_config` block at NPM **must explicitly exempt `/healthz`** from the `Authorization` check, or both the smoke probe and the `/pipeline/health` aggregation will 401. See §Deploy chain step 2 for the exempt block.
+
 ### Required headers
 
 | Header | Required on | Purpose |
@@ -119,8 +121,10 @@ Used by the deploy smoke check and by Plan 1's `/pipeline/health` to fill its `w
 | `Authorization: Bearer <static_ingress_token>` | all auth'd endpoints | Edge filter at NPM; rotated quarterly. Token in `~/projects/30_OpenSandboxPipeline/infra/.env` as `WEBHOOK_BEARER`. |
 | `X-Webhook-Signature: sha256=<hex>` | all auth'd endpoints | HMAC-SHA256 over raw request body, key = per-job secret looked up by `job_id`. |
 | `X-Webhook-Timestamp: <unix>` | all auth'd endpoints | Epoch seconds. Rejected if abs(skew) > 300. |
-| `Idempotency-Key: <uuid>` | all auth'd endpoints | Fresh UUID per HTTP attempt (not per job). Stored 24h. |
+| `Idempotency-Key: <uuid>` | all auth'd endpoints | Fresh UUID per **logical event**; reused across retries of that event so retries dedup correctly. Stored 24h. |
 | `Content-Type: application/json` | POST endpoints | Strictly enforced. |
+
+**Body size cap:** 1 MB. Oversize requests rejected at the FastAPI app with `413 Payload Too Large` and a `WEBHOOK_REJECTED_OVERSIZE` event. NPM proxy host is configured with `client_max_body_size 1m` to drop oversize at the edge first. `logs_tail` is capped at **50 entries × 500 chars each** to stay under the body budget; the sandbox client is responsible for truncating.
 
 ### Response status codes
 
@@ -133,7 +137,9 @@ Used by the deploy smoke check and by Plan 1's `/pipeline/health` to fill its `w
 | 403 | HMAC signature invalid |
 | 409 | Terminal state already set; logged as `late_terminal`, no transition |
 | 410 | Timestamp skew > 300s |
+| 413 | Request body > 1 MB (rejected at NPM edge, then at app) |
 | 429 | Per-`job_id` rate limit (60/min heartbeat, 10/min terminal) — *contract documented; enforcement deferred* |
+| 503 | Paperclip stub unavailable (job secret lookup failed). Sandbox client retries per §Retry semantics. Logged as `WEBHOOK_PAPERCLIP_UNAVAILABLE`. |
 
 ---
 
@@ -169,6 +175,10 @@ The webhook is **stateless w.r.t. secrets** — it never persists them, only que
 
 Heartbeats arriving after a terminal state also return `409` and are logged as `late_heartbeat`.
 
+**Artifact path is a sandbox-internal string.** The `artifact` field on `/complete` is a path *inside* the sandbox container. The host never reads it directly — artifact extraction goes through OpenSandbox's `execd` file API addressed by `job_id`. The path is for traceability and human readability only; no host-side path validation or filesystem access is performed against it.
+
+**Replay accounting.** `Idempotency-Key` replays of *any* endpoint (including heartbeat) increment the `rejected_replay` counter. There is no per-endpoint replay metric — the single counter is enough at Phase 1 volume; split later if needed.
+
 **Concurrency posture (Plan 2):**
 - Uvicorn single-worker (`--workers 1`) provides serialization within the process.
 - `Idempotency-Key` dedup is the primary correctness mechanism (works under any worker count, future-proofing).
@@ -184,7 +194,7 @@ Sandbox webhook client behavior — Plan 2 specifies the contract; the implement
 - Treats 2xx and 409 as terminal-success-of-the-call (no further retries).
 - Treats 4xx other than 408/429 as permanent failure (no retries; falls back to `/workspace/.done` file marker per parent spec §Completion Signal Contract).
 - Treats 5xx, 408, 429, and connection errors as transient (retried).
-- Same `Idempotency-Key` reused across retries of the same logical event (UUID generated once per attempt sequence, not per HTTP call).
+- Same `Idempotency-Key` reused across all retries of the same logical event (UUID generated **once per event**, never per HTTP call). This is the contract that makes server-side dedup work — see §Endpoints headers table.
 
 After 5 failed attempts the sandbox falls through to the `.done` file marker (already specified in parent spec; no Plan 2 change needed). 30s polling fallback wins on any webhook outage longer than the retry budget.
 
@@ -278,7 +288,7 @@ When real Paperclip lands, `paperclip_client.py` is the only file that changes; 
 <key>ThrottleInterval</key><integer>10</integer>
 ```
 
-Logs to `~/Library/Logs/pipeline-webhook.{out,err}.log`.
+Logs to `~/Library/Logs/pipeline-webhook.{out,err}.log`. **Rotation:** macOS launchd does not rotate stdout/stderr. A daily `newsyslog`-style entry at `/etc/newsyslog.d/pipeline-webhook.conf` rotates both files when they exceed 10 MB, keeping 7 generations gzipped. Installed by the same `install-webhook-launchd.sh` script.
 
 ---
 
@@ -325,7 +335,15 @@ Sample row:
 ## Deploy chain (idempotent, mirrors Plan 1)
 
 1. **DNS** — manual, one-time: A record `webhook.getaccess.cloud` → VPS IP.
-2. **NPM proxy host** — `infra/scripts/deploy-webhook-npm.sh` creates/updates host via NPM REST API on `127.0.0.1:81/api/`. Scheme `http`, forward `127.0.0.1:9090`, force-SSL on, HSTS on, websocket off, body size 10MB. `advanced_config` block includes the bearer check.
+2. **NPM proxy host** — `infra/scripts/deploy-webhook-npm.sh` creates/updates host via NPM REST API on `127.0.0.1:81/api/`. Scheme `http`, forward `127.0.0.1:9090`, force-SSL on (TLS 1.2+ — NPM Let's Encrypt default; verified post-deploy with `curl --tls-max 1.1` returning handshake failure), HSTS on, websocket off, `client_max_body_size 1m`. `advanced_config` block:
+   ```nginx
+   # /healthz must be reachable without bearer for liveness probes
+   location = /healthz {
+     proxy_pass http://127.0.0.1:9090;
+   }
+   # all other paths require the static ingress bearer
+   if ($http_authorization != "Bearer ${WEBHOOK_BEARER}") { return 401; }
+   ```
 3. **launchd plist** — `infra/scripts/install-webhook-launchd.sh` writes the plist and `launchctl bootstrap`s it.
 4. **autossh** — already running per Plan 1 (`com.gtxs.pipeline-webhook-tunnel` with `-R 9090:127.0.0.1:9090`). No change.
 5. **Verification** — `infra/scripts/smoke-webhook.sh`:
@@ -344,7 +362,7 @@ All scripts re-runnable with no side effects on success — Plan 1 idempotency c
 |---|---|---|---|
 | Unit | `auth.verify_signature`, `auth.check_timestamp`, `store.dedup_or_record`, body validation | pytest + `httpx.AsyncClient` against `TestClient` | All branches; ≥90% line coverage on `auth.py`, `store.py` |
 | Integration | POST → SQLite write → counter increment → `job-log.jsonl` append | pytest + tmp_path SQLite + tmp `job-log.jsonl` | Each endpoint produces correct DB rows + log lines |
-| Contract | Replay → 200/`already_recorded`; bad HMAC → 403; skew → 410; late terminal → 409 + `late_terminal`; bad bearer simulated → 401 path | pytest scenarios | Each path returns documented status and event |
+| Contract | Replay → 200/`already_recorded`; bad HMAC → 403; skew → 410; oversize body → 413; Paperclip stub absent → 503; late terminal → 409 + `late_terminal`; bad bearer simulated → 401 path; concurrent dedup race (two parallel POSTs same key) → exactly one 200 + one `already_recorded` | pytest scenarios + `pytest-asyncio` for the race case | Each path returns documented status and event |
 | Smoke (post-deploy) | `infra/scripts/smoke-webhook.sh` against the public URL with a fixture secret | bash + curl + openssl | All 4 assertions in §Deploy chain step 5 pass |
 
 **Test contract before test count:** unit/integration tests share a single `conftest.py` with fixtures for (a) in-memory SQLite, (b) tmp `job-log.jsonl`, (c) a mock `paperclip_client` with a known `test-job` + secret, (d) a `signed_post` helper that builds valid auth headers. No test mocks the webhook app itself — all tests run real `TestClient` requests through the real handler.
