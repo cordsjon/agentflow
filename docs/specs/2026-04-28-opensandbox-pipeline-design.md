@@ -1,7 +1,9 @@
 # OpenSandbox Autonomous Dev Pipeline — Design Spec
 **Date:** 2026-04-28
-**Status:** Draft v2 — post spec-panel review
+**Status:** Draft v3 — Plan 1 (Infrastructure Foundation) shipped 2026-04-28; spec updated with actuals
 **Owner:** Jonas Cords
+
+> **Plan 1 status (2026-04-28):** Complete and verified. Public health endpoint live at `https://paperclip.getaccess.cloud/pipeline/health` returning `{"opensandbox":"up","hermes":"down","paperclip":"up","active_jobs":0}`. See `~/projects/30_OpenSandboxPipeline/HANDOVER.md` for the deploy + verification trail. Webhook public ingress deferred to Plan 2.
 
 ---
 
@@ -291,7 +293,7 @@ Expose API. Build `customer-intake` skill + minimal intake form. Only when Tier 
 - **Sandbox resource limits:** 2 vCPU, 4GB RAM, 10GB disk per job
 - **Sandbox TTL:** 2h hard timeout, 30min idle kill (no filesystem writes for 30min)
 - **Sandbox security backend:** runc (Phase 1) → gVisor (Phase 2, first external customer, trigger: Tier 3 onboarding)
-- **Network:** per-sandbox FQDN egress control (OSEP-0001); Paperclip webhook exposed at `getaccess.cloud:9090` (nginx reverse proxy on existing VPS — NOT `host.docker.internal`)
+- **Network:** per-sandbox FQDN egress control (OSEP-0001). OpenSandbox lifecycle API on Mac Mini:9124 (portmgr-allocated; 8080=Dagu, 8088=Rancher Desktop lima). Reverse `autossh` tunnel forwards VPS:9124→Mac:9124 (loopback only) for VPS-side liveness probes, and VPS:9090→Mac:9090 reserved for the future webhook listener. Public Paperclip webhook ingress is **deferred to Plan 2** — likely a new NPM proxy host on `webhook.getaccess.cloud` over 443 (port 9090 is firewalled and would require a stream proxy or ufw rule).
 - **Kubernetes:** deferred until Phase 3 volume justifies ops overhead
 - **MCP integration:** OpenSandbox MCP server exposes lifecycle as tool calls to Paperclip
 - **Circuit breaker:** OpenSandbox API calls use 3-retry / 5s-backoff pattern; persistent failure → job FAILED, not silent hang
@@ -306,11 +308,13 @@ All job state transitions appended to `~/projects/00_portmgr/job-log.jsonl`:
 Fields: `job_id`, `event`, `ts`, `duration_s` (cumulative), `retry` (0-3), `gap_count`. Phase 1 success gate (≥4/5 without HUMAN_REVIEW) measured from this file.
 
 ### Pipeline health check
-FastAPI endpoint on VPS: `GET https://getaccess.cloud/pipeline/health`
+FastAPI endpoint on VPS: `GET https://paperclip.getaccess.cloud/pipeline/health` (apex `getaccess.cloud` TLS routing is broken pre-Plan-1 — no NPM proxy host for the apex; the `paperclip` subdomain is what's actually live).
 Returns:
 ```json
 {"opensandbox": "up", "hermes": "up", "paperclip": "up", "active_jobs": 2}
 ```
+Internally: uvicorn on VPS:9091 → systemd unit `pipeline-health.service` → probes Mac Mini OpenSandbox via the autossh reverse tunnel. Public exposure routed through NPM custom location on proxy host `paperclip.getaccess.cloud` (id 18) with `rewrite ^/pipeline/health$ /health break;`.
+
 `PostToolUse` hook runs health check on session start. `osascript` alert if any component is `down`.
 
 ### Customer job status API
@@ -328,3 +332,5 @@ On job completion: artifacts extracted from sandbox `/workspace/artifacts/` → 
 3. **gVisor trigger:** First Tier 3 external customer job (§Rollout Sequence)
 4. **HUMAN_REVIEW notification:** `PostToolUse` hook watches Write tool calls to `HUMAN_REVIEW.md` → fires `osascript` macOS notification. Paperclip has no native notification API. (§HUMAN_REVIEW Notification)
 5. **Tier 2 pricing:** Per-job flat fee + per-sandbox-hour for long-running jobs. Short jobs pay flat; complex multi-hour jobs pay time-based on top. Prevents underpricing large briefs while keeping simple jobs predictably priced.
+6. **VPS public routing (Plan 1):** Public nginx is **NPM (Nginx Proxy Manager)** in container `npm`, host network mode — not host nginx (which is a decoy). All external routes are managed via NPM REST API on `127.0.0.1:81/api/`, not by editing `/etc/nginx/*` or tinycp configs. Custom locations on existing proxy hosts use `advanced_config` for path rewrites since NPM renders `proxy_pass` without a URI. (Verified 2026-04-28 via `docker top npm` + `cat /proc/<master>/cgroup`.)
+7. **OpenSandbox local port (Plan 1):** Mac Mini:9124 (portmgr-allocated). 8080 is owned by Dagu; 8088 is taken by Rancher Desktop's lima ssh mux. Port chosen for stability across local services.

@@ -1,5 +1,7 @@
 # Pipeline Plan 1: Infrastructure Foundation Implementation Plan
 
+> **STATUS: SHIPPED 2026-04-28.** All 8 chunks complete. Public health endpoint verified at `https://paperclip.getaccess.cloud/pipeline/health`. Implementation deltas vs. this plan: (a) OpenSandbox port migrated 8080→9124 (8080 owned by Dagu, 8088 by Rancher Desktop); (b) public routing was via NPM REST API on the existing `paperclip.getaccess.cloud` proxy host, not host-nginx splice (host nginx is a decoy); (c) public webhook ingress on port 9090 deferred to Plan 2 (ufw blocks; needs NPM stream proxy or new subdomain). See `~/projects/30_OpenSandboxPipeline/HANDOVER.md`.
+
 > **For agentic workers:** REQUIRED: Use `/sh:execute` to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Deploy OpenSandbox locally on the Mac Mini, expose Paperclip webhook publicly via the existing VPS, and stand up a `/pipeline/health` endpoint that all later plans depend on.
