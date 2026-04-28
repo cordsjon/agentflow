@@ -1,3 +1,8 @@
+---
+name: kickoff
+description: "Use at session start or when resuming work — before reading pipeline files or picking the next task"
+---
+
 # /kickoff — Daily Kickoff
 
 Automated daily kickoff sequence. Scans all pipeline files, auto-cleans shipped items,
@@ -49,10 +54,33 @@ GROOMING:    {N} archived ({N} Ideation, {N} Refining, {N} Ready)
 
 If 0 items found across all checks, print the "Clean" variant and skip the detail lines.
 
+### Step 2e — QMD context scan (read-only)
+
+Query QMD for recent activity in the active project's collection to surface specs, plans, and design docs the next task may depend on. This replaces manually grepping for markdown files.
+
+```
+mcp__qmd__query searches=[
+  {"type": "lex", "query": "spec plan design"},
+  {"type": "vec", "query": "recent implementation plan or spec for current sprint"}
+] collections=["<active-project-collection>"] limit=5
+```
+
+- Use the project's QMD collection name (e.g., `svg-paint`, `consigliere`, `keto`, `poster-engine`, `governance`)
+- If the project has no QMD collection, skip silently
+- Include top 3 results (title + file path) in the summary under `CONTEXT:`
+- This gives the session awareness of recent design decisions without reading full files
+
 ### Step 3 — Check governance state
 
 6. `.autopilot` — read semaphore state (`run` / `pause` / missing)
-7. `governance/BACKLOG.md` — check for cross-project items that outrank local work (§7 rule 1)
+7. Cross-project priority check via QMD (not hardcoded file read):
+   ```
+   mcp__qmd__query searches=[
+     {"type": "lex", "query": "Ready priority cross-project"},
+     {"type": "vec", "query": "high priority cross-project backlog items that outrank local work"}
+   ] collections=["governance"] limit=5
+   ```
+   Flag any governance-level Ready items that outrank the local project queue.
 
 ### Step 4 — Produce summary
 
@@ -67,6 +95,7 @@ GROOMING:    {grooming summary from Step 2d}
 QUEUE:       {N} unchecked ({N} done today)
 AUTOPILOT:   {state}
 RETRO:       {N}/10 stories until next retro
+CONTEXT:     {top 3 QMD results: title (file), or "No recent docs"}
 ════════════════════════════════════════
 ```
 

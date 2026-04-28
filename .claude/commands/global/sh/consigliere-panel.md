@@ -1,6 +1,6 @@
 ---
 name: sh-consigliere-panel
-description: "Multi-expert intelligence pipeline review — discovery quality, ingestion resilience, scoring validity, platform compliance, taxonomy coherence, cost efficiency"
+description: "Use when reviewing Consigliere pipeline changes, new scrapers/parsers, scoring model updates, taxonomy modifications, or ingestion resilience before merging"
 ---
 
 <context>
