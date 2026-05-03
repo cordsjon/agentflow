@@ -18,37 +18,103 @@ End-of-session pipeline. Default mode is **checkpoint** (fast: promote + handove
 
 ---
 
+## Step −2 — Acquire Lightsout Lock (always runs first)
+
+Only one `/lightsout` should write to shared governance files (`KNOWN_PATTERNS.md`, `BACKLOG.md`, `pending.jsonl`, `HANDOVER-*.md`) at a time. This step blocks until any sibling lightsout exits, with a 9-minute timeout. Skipped on `--dry-run`.
+
+**IMPORTANT:** Invoke the bash block below with `timeout: 600000` so the 9-min wait fits inside the Bash tool's max timeout. Without that, Claude Code will kill the wait at the default 2 min and the lock will not be acquired correctly.
+
+The lock is a sentinel file (not `flock(1)`) because kernel locks die with each bash process and Claude skills span many bash calls. Sentinel-as-state with mtime TTL gives self-healing across the full skill duration.
+
+```bash
+mkdir -p ~/.local/state/lightsout
+LOCK=~/.local/state/lightsout/active.session
+SESSION_ID="${CLAUDE_SESSION_ID:-$(date +%s)-$$}"
+TTL_MIN=30           # stale-lock auto-release window
+WAIT_SEC=540         # 9 min — fits inside Claude's 10-min Bash max
+POLL_SEC=10
+
+# --dry-run skips the lock entirely (read-only, no contention)
+if [ "${LIGHTSOUT_DRY_RUN:-0}" = "1" ]; then
+  echo "LIGHTSOUT_LOCK_OK session=$SESSION_ID waited=0s mode=dry-run"
+  exit 0
+fi
+
+is_stale() {
+  local mtime age_min
+  mtime=$(stat -f %m "$LOCK" 2>/dev/null || stat -c %Y "$LOCK" 2>/dev/null)
+  [ -z "$mtime" ] && return 0
+  age_min=$(( ($(date +%s) - mtime) / 60 ))
+  [ "$age_min" -ge "$TTL_MIN" ]
+}
+
+acquire() {
+  if [ -s "$LOCK" ]; then
+    local holder
+    holder=$(cat "$LOCK")
+    [ "$holder" = "$SESSION_ID" ] && return 0       # idempotent re-entry
+    if is_stale; then
+      echo "Stale lock ($holder) — reclaiming" >&2
+      rm -f "$LOCK"                                 # required so noclobber write succeeds
+    else
+      return 1                                      # active sibling — wait
+    fi
+  fi
+  # noclobber atomic write — first writer wins on concurrent attempts
+  ( set -C; echo "$SESSION_ID" > "$LOCK" ) 2>/dev/null && return 0 || return 1
+}
+
+WAITED=0
+until acquire; do
+  HOLDER=$(cat "$LOCK" 2>/dev/null || echo "?")
+  echo "Waiting for /lightsout lock (holder=$HOLDER, waited=${WAITED}s/${WAIT_SEC}s)" >&2
+  sleep "$POLL_SEC"
+  WAITED=$((WAITED + POLL_SEC))
+  if [ "$WAITED" -ge "$WAIT_SEC" ]; then
+    echo "LIGHTSOUT_TIMEOUT waited=${WAITED}s holder=$HOLDER"
+    exit 99
+  fi
+done
+
+echo "LIGHTSOUT_LOCK_OK session=$SESSION_ID waited=${WAITED}s"
+```
+
+**If the output contains `LIGHTSOUT_TIMEOUT`**: STOP. Do not proceed to Step −1. Report to the user that the sibling lightsout did not finish within 9 min — they should investigate whether the holder is stuck (check `~/.local/state/lightsout/active.session` and the holder's session) or run `/lightsout` again later. End the skill.
+
+**If the output contains `LIGHTSOUT_LOCK_OK`**: continue to Step −1.
+
+---
+
+## Step −1 — Mark Lightsout Active (always runs after lock acquired)
+
+Drop the sentinel file the session-length-guard hook checks. Without this, a high-count session that hits `/lightsout` near the EXIT threshold (count=60) gets halted by the guard mid-handover — the very wrap-up the guard was telling the user to run.
+
+```bash
+touch /tmp/claude-lightsout-active
+```
+
+The sentinel has a 30-min mtime TTL inside the guard — abandoned lightsouts self-heal so the guard re-arms automatically. Step 7 clears it on clean exit.
+
+---
+
 ## Step 0 — Promote Pending Insights (always runs)
 
-Inline promote-insights (do NOT invoke as separate skill — saves a tool call round-trip):
+Single CLI call — `promote_insights.py` owns the deterministic state machine (read → filter `kp_candidate` → fingerprint-dedupe vs KNOWN_PATTERNS.md → FIPD-classify → append KP-N → archive → clear). Stdlib-only, atomic writes.
 
-1. Read `~/.local/state/insights/pending.jsonl`
-   - **If empty or missing**: report "No pending insights" and skip to Step 1
-2. Filter lines where `kp_candidate: true`
-3. Skip duplicates — use QMD to check for existing KPs with similar titles before grepping the full file:
-   ```
-   mcp__qmd__query searches=[{"type": "lex", "query": "\"<candidate title keywords>\""}]
-     collections=["governance"] limit=5
-   ```
-   If QMD returns a matching KP entry, skip it. For edge cases where QMD might miss a match, fall back to `grep "### KP-" KNOWN_PATTERNS.md` for the highest KP number only.
-4. For each KP candidate:
-   - Find highest KP-N number, increment
-   - Match to existing `## N.` category section (or create new section if none fit)
-   - Classify FIPD action type (Fix/Investigate/Plan/Decide)
-   - Write entry in format:
-     ```markdown
-     ### KP-N: Short descriptive title
+```bash
+python3 ~/projects/00_Governance/scripts/promote_insights.py
+```
 
-     **Category:** [section] | **Action:** [FIPD] | **Origin:** [context] ([date])
+Add `--dry-run` to preview, `--no-dedupe` to bypass the duplicate fingerprint check, `--max=N` to cap promotions per run (default 50). The script handles "Last updated" date stamping and archives all entries (KP + non-KP) to `~/.local/state/insights/archive/YYYY-MM.jsonl`.
 
-     [Prose description of anti-pattern or lesson]
+**Behavior:**
+- Empty/missing pending → prints "No pending insights" and exits 0
+- Non-candidate entries are archived but not promoted
+- FIPD classification is rule-based heuristic (Fix/Investigate/Decide/Plan in priority order); ambiguous entries default to Plan
+- Section assignment is deferred — entries append to end of file under their KP heading; manual re-categorization happens during quarterly KP review
+- Title derived from first sentence (truncated 80 chars)
 
-     **Correct pattern:** [Correct approach]
-     ```
-5. Append entries to appropriate sections in KNOWN_PATTERNS.md, update "Last updated" date
-6. Archive all lines (KP and non-KP) from `pending.jsonl` to `~/.local/state/insights/archive/YYYY-MM.jsonl`
-7. Clear `pending.jsonl`
-8. Report: KP-N numbers promoted, non-KP archived, duplicates skipped
+Report what the script printed.
 
 ---
 
@@ -89,6 +155,17 @@ python3 ~/projects/00_Governance/scripts/backlog_reconciler.py ~/projects/00_Gov
 
 - Exit 2 (stale stories): include in **Open Items** with `[RECONCILER]` tag
 - Exit 0: note "Backlog reconciler: clean"
+
+### Step 1c — Paperclip ↔ BACKLOG sync (always runs)
+
+```bash
+python3 ~/projects/00_Governance/scripts/paperclip_backlog_sync.py
+```
+
+Reads Paperclip for `done` issues with `US-XX-NN` ids, ticks matching ACs in `BACKLOG.md`, and rewrites the State line to `SHIPPED (GET-N done YYYY-MM-DD)`. Idempotent — skips blocks already containing `SHIPPED`.
+
+- Reports `N block(s)` reconciled or "already in sync"
+- Include the count in **Open Items** if non-zero so the next session sees it
 
 ---
 
@@ -139,23 +216,31 @@ Full structured summary with commit hashes, grouped by project:
 
 Sweep accumulated automation debt from `/reflect` scans into Paperclip tickets.
 
-**Step 2b.0 — Inline reflect scan (always runs before the sweep):**
-Before reading the pending file, run the `/reflect` scan inline on this session's work. The historical producer (post-commit hook → manual `/reflect` invocation) proved unreliable — the hook exited silently and the slash command was rarely invoked, so `pending.jsonl` stayed at 0 regardless of actual debt. Running the scan here closes the producer/consumer loop deterministically.
+**Step 2b.0 — Safety-net catch-up scan (only if needed):**
+Per-commit scans are now the primary producer: `automation-debt-check.sh` fires after every git commit and outputs an inline 6-question scan prompt that is filled out as part of the next response. Each commit's debt should already be in `pending.jsonl` by the time `/lightsout` runs.
 
-- Review the session transcript for the five patterns in `~/.claude/commands/reflect.md` (inline scripts, manual service calls, data transformation, manual orchestration, manual deployment)
-- For each gap found, append a JSON line to `~/.local/state/automation-debt/pending.jsonl` in the schema defined by the reflect skill
-- If the session was pure read/discussion or pure filesystem ops against external systems (no inline orchestration), report `reflect: clean` and continue
+This step is the safety net for work that didn't go through a commit (untracked sessions, discussion-only work that produced manual orchestration, etc.):
+
+- **Skip if recent activity is fully committed** — if every meaningful action since the last `/lightsout` ended in a commit, the per-commit hook already captured it. Report `reflect: covered by per-commit scans` and continue.
+- **Otherwise**, scan only the uncommitted portion of the session for the six patterns in `~/.claude/commands/reflect.md` (inline scripts, manual service calls, data transformation, manual orchestration, Skill-Unused, Skill-Missing).
+- Append findings as JSON lines to `~/.local/state/automation-debt/pending.jsonl` in the schema defined by the reflect skill.
 - Do NOT brainstorm fixes here — just log gaps. `/analyze-debt` does the root-cause work later.
 
-1. Read `~/.local/state/automation-debt/pending.jsonl`
-   - **If empty or missing**: report "No automation debt" and skip
-2. Group entries by `project`
-3. For each project group with 2+ entries: create ONE Paperclip issue titled `Automation debt: [project] — [N] CLI/service gaps` with all gaps listed in the description
-4. For single entries: create individual Paperclip issues
-5. Use `/paperclip` skill shorthand resolution for project + agent assignment (default: CTO for design decisions, Engineer for implementation)
-6. Archive all entries to `~/.local/state/automation-debt/archive/YYYY-MM.jsonl`
-7. Clear `pending.jsonl`
-8. Report: N gaps swept into M Paperclip tickets
+Single CLI call — `sweep_automation_debt.py` is a thin wrapper around `paperclip.sh debt-sweep` (which already groups by project + creates issues + resolves project IDs via the live `/projects` API). The wrapper adds the archive/clear lifecycle so Step 2b is one atomic call.
+
+```bash
+python3 ~/projects/00_Governance/scripts/sweep_automation_debt.py
+```
+
+Flags: `--dry-run` (preview only — no Paperclip writes, no archive), `--no-paperclip` (archive without dispatching, useful when offline), `--assignee <agent>`, `--status <s>`, `--priority <p>`.
+
+**Behavior:**
+- Empty/missing pending → prints "No automation debt pending" and exits 0
+- `kind: clean` / `gap: clean` markers are filtered (counted as "clean markers" in stdout, archived but not dispatched)
+- Project-name → Paperclip-project-id resolution lives in `paperclip.sh` (`resolve` against live API), not in any local mapping table
+- On Paperclip API failure: archive is **skipped** so pending.jsonl is preserved for retry. Exit code 4 signals partial run
+
+Report what the script printed.
 
 ---
 
@@ -180,30 +265,26 @@ Log: "Started N overnight DAGs: [names]" or "No overnight DAGs to start"
 
 ## Step 4 — Publish to gtxs.eu (--full only)
 
-**Fast pre-check (1 tool call):**
-```bash
-grep -c "^## $(date +%Y-%m-%d)" ~/projects/00_Governance/DONE-Today.md 2>/dev/null || echo "0"
-```
-If 0: "No publishable items today — skipping." and move to Step 5.
-
-If > 0, proceed with full pipeline:
-
 Config: `~/projects/deploy/lightsout-config.json`
 
-**4a — Filter, Classify & Type**
-Cross-reference today's DONE-Today items against `allow_list.allowed_topics`. Skip `blocked_topics` silently.
+**4a + 4b — Prep manifest (filter, classify, secret-scan source)**
 
-| Type | Target |
-|------|--------|
-| **learning** | **Both** — gtxs.eu + getaccess.net |
-| **use-case** | **getaccess.net only** |
-| **analysis** | **getaccess.net only** |
+```bash
+python3 ~/projects/00_Governance/scripts/publish_today.py prep --out /tmp/publish-manifest.json
+```
 
-Classify gtxs.eu learnings: `ai-use-cases/claude-code/` (Claude Code/DevOps) or `ai-use-cases/` (other AI tools).
-Deduplicate: skip if page already exists.
+The CLI does Step 4a (cross-reference DONE-Today against `allow_list.allowed_topics` / `blocked_topics`, classify learning/use-case/analysis, set target_sites per `routing_rule`, pick accent color) and Step 4b (regex secret scan over source content).
 
-**4b — Secret Scan (BLOCKING GATE)**
-Scan ALL source content against `secret_patterns` in config. Match = STOP.
+**Outcomes:**
+- Exit 0, "Publishable: 0 item(s)" → "No publishable items today" and skip to Step 5
+- Exit 0, "Publishable: N item(s)" → manifest at `/tmp/publish-manifest.json`, continue to 4c
+- Exit 1, "BLOCKING: secret patterns" → STOP. Inspect `manifest.secret_hits`, fix source, re-run
+
+**Manifest schema** (each item):
+```json
+{ "date": "...", "title": "...", "project": "...", "body": "...",
+  "classification": "learning|use-case|analysis", "target_sites": ["..."], "accent": "..." }
+```
 
 **4c — Generate HTML**
 
@@ -220,7 +301,12 @@ Scan ALL source content against `secret_patterns` in config. Match = STOP.
 Write HTML files. Update index pages for both sites.
 
 **4e — Final Secret Scan (BLOCKING GATE)**
-Re-scan generated HTML. Match = STOP + remove.
+
+```bash
+python3 ~/projects/00_Governance/scripts/publish_today.py scan-html <path-to-each-generated-html>...
+```
+
+Re-scans rendered HTML against the same `secret_patterns` from config. Exit 1 = secret found in output → STOP, remove the file, fix the template, regenerate.
 
 **4f — Deploy**
 ```bash
@@ -399,6 +485,19 @@ Determine primary project from session work. Append to `~/.local/state/codeburn/
 ```bash
 mkdir -p ~/.local/state/codeburn
 echo '{"session_id": "<uuid>", "project": "<canonical name>", "date": "YYYY-MM-DD"}' >> ~/.local/state/codeburn/session-projects.jsonl
+```
+
+---
+
+## Step 7 — Release Lightsout Locks (always runs last)
+
+Remove both the guard sentinel (Step −1) and the cross-session lock (Step −2) so the next `/lightsout` can proceed without waiting. Idempotent — `rm -f` is safe if either file is already gone (partial run, manual cleanup, stale-reclaim by a sibling).
+
+The lock release is **last** so Steps 0–6 retain exclusive access to the shared governance files for the entire wrap-up. If a sibling is queued (polling), it acquires within `POLL_SEC` (~10s) of this step.
+
+```bash
+rm -f /tmp/claude-lightsout-active
+rm -f ~/.local/state/lightsout/active.session
 ```
 
 ---

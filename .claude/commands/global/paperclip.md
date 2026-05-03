@@ -71,7 +71,7 @@ bash ~/.claude/scripts/paperclip.sh list-agents 2>/dev/null || \
   -H "Accept: application/json" | python3 -m json.tool
 ```
 
-Common shorthands (resolved by `paperclip.sh`): con, svg, gov, keto, poster, eng, cto, researcher, analyst, reviewer, pub, mkt, reqeng, autoeng. If a shorthand doesn't resolve, fetch the live list above.
+There is **no static shorthand table**. `paperclip.sh` resolves any input case-insensitively against live agent/project fields (`id`, `name`, `persona`, `role`, `short`, `slug`, `key`, `displayName`, `shortName`). If a name like `cto` or `researcher` doesn't resolve, it isn't in the roster — run `list-agents` / `list-projects` to see what is.
 
 ## API Routes
 

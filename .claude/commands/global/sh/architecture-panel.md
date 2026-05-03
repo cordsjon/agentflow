@@ -21,6 +21,7 @@ Silent mode still performs full internal analysis — quality is preserved, only
 
 ## Behavioral Flow
 
+0. **FOR-DEC Preflight**: Before running the panel, assess the decision scope. If the decision is irreversible or cross-cutting (schema migration, auth model, persistence layer, service decomposition, deploy target), check whether a FOR-DEC artifact has been provided or exists in context. If not, run the `for-dec` skill first and include its output as panel input. Skip FOR-DEC for reversible or scoped decisions.
 1. **Ingest**: Parse input — detect architecture diagram, ADR, code structure, API spec, or text description
 2. **Classify**: Identify architecture style (monolith, microservices, event-driven, serverless) and concerns
 3. **Assemble Panel**: Select experts based on `--focus` area or use defaults. `--experts` override replaces defaults entirely. Max 6 experts per review.

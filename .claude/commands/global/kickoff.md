@@ -54,6 +54,14 @@ GROOMING:    {N} archived ({N} Ideation, {N} Refining, {N} Ready)
 
 If 0 items found across all checks, print the "Clean" variant and skip the detail lines.
 
+### Step 2f — Paperclip ↔ BACKLOG sync (write)
+
+```bash
+python3 ~/projects/00_Governance/scripts/paperclip_backlog_sync.py
+```
+
+Reconcile drift accumulated since last lightsout. Reads Paperclip for `done` issues with `US-XX-NN` ids, ticks matching ACs in `BACKLOG.md`, rewrites State lines to `SHIPPED (GET-N done YYYY-MM-DD)`. Idempotent — skips blocks already containing `SHIPPED`. Include the reconcile count in the kickoff summary if non-zero.
+
 ### Step 2e — QMD context scan (read-only)
 
 Query QMD for recent activity in the active project's collection to surface specs, plans, and design docs the next task may depend on. This replaces manually grepping for markdown files.

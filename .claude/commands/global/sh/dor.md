@@ -15,6 +15,7 @@ An item that fails DOR cannot enter TODO-Today queue. It stays in BACKLOG#Refini
 - [ ] **Spec document exists** — requirements doc with functional requirements
 - [ ] **Spec panel score >= 7.0** — `/sh:spec-panel` critique passed (or issues addressed and re-scored). Score below 7.0 blocks graduation to Ready
 - [ ] **Architecture decided** — if new modules/APIs: design doc exists
+- [ ] **FOR-DEC complete** — if decision is irreversible or cross-cutting (schema, persistence layer, auth model, service decomposition): FOR-DEC artifact exists with a Check-step verification US in the backlog. Skip for reversible or isolated decisions.
 - [ ] **Dependencies identified** — any blocking work listed and either complete or explicitly deferred
 - [ ] **Test strategy known** — which test types needed (unit, integration, E2E), approximate count
 - [ ] **No constraint violations** — feature doesn't conflict with project's constraints

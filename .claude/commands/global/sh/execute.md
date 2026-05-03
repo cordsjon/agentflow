@@ -11,6 +11,24 @@ Load plan, review critically, execute all tasks, report when complete.
 
 **Announce at start:** "I'm using the sh:execute skill to implement this plan."
 
+## Pre-flight: Working Tree Check
+
+**As the very first action**, before loading the plan, run:
+
+```
+git status --porcelain
+```
+
+- "not a git repository" → proceed normally (no false positive).
+- Output is **empty** → clean tree, proceed.
+- Output is **non-empty** and `--allow-dirty` was **not** passed → **refuse**:
+  > "Working tree is dirty. Commit or stash your changes before executing a plan, or pass `--allow-dirty` to override."
+  Then stop — do not load or execute the plan.
+- `--allow-dirty` passed → skip the check, include in run header:
+  > "[AUDIT] --allow-dirty flag set: dirty-tree check suppressed."
+
+---
+
 ## The Process
 
 ### Step 1: Load and Review Plan

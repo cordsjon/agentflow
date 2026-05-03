@@ -3,6 +3,8 @@ name: sh-plan
 description: "Use when you have a spec or DOR-cleared User Story and need an ordered implementation plan before writing any code"
 ---
 
+<!-- Host Conventions: Read=`Read`, Edit=`Edit`, Shell=`Bash`, Search=`Glob`/`Grep`, WebSearch=`WebSearch`, Write=`Write`, Tasks=`TodoWrite`. Set $AGENT_PLATFORM to override. Full table: 00_Governance/templates/HOST-CONVENTIONS.md -->
+
 # Writing Plans
 
 ## Overview
@@ -15,6 +17,10 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 **Save plans to:** `docs/plans/YYYY-MM-DD-<feature-name>.md`
 - (User preferences for plan location override this default)
+
+## FOR-DEC Preflight
+
+Before writing the plan, scan the spec for irreversible or cross-cutting architectural choices (schema design, persistence layer, auth model, service boundaries, deploy targets). If any exist and no FOR-DEC artifact is present in context or the project docs, run the `for-dec` skill first. The FOR-DEC Decision and Check steps must be resolved before the plan locks in the architectural direction. Skip for fully reversible or isolated implementation work.
 
 ## Scope Check
 

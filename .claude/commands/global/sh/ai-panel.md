@@ -79,6 +79,35 @@ Strategic questioning to develop AI thinking. Experts challenge model choices, p
 - **cost-optimization**: Token economics, model routing, caching, session management, build-vs-prompt. Lead: Huyen. Experts: Huyen, Karpathy, Shawn Wang
 - **claude-code-workflow**: CLAUDE.md optimization, skill portfolio, hooks, MCP curation, session design, VS Code + macOS integration. Lead: Willison. Experts: Willison, Askell, Mollick, Shawn Wang
 - **mcp-tooling**: Server selection, tool orchestration, custom server design, latency optimization. Lead: Willison. Experts: Willison, Weng, Shawn Wang
+- **deepseek**: Deepseek-specific API surface, feature gaps, tier-2 fallback design. Lead: Huyen. Experts: Huyen, Willison, Wei. Auto-loads the **Deepseek Reference** block below.
+
+## Deepseek Reference (authoritative — cite these, don't paraphrase from training data)
+
+When Deepseek comes up in any review, experts MUST consult this block before commenting on capability, cost, or architecture. Training data on Deepseek is sparse and often stale; this section is the source of truth.
+
+**Models in this portfolio's stack:**
+- `deepseek-chat` — general chat, OpenAI-compatible, used by Consigliere `idea/additions.py`, `catalog/discover.py`, FLM `router_client.py`
+- `deepseek-v4-flash` — cheaper/faster variant, used as Tier-2 fallback (KETO enrichment, Briefing Publisher, Coaching MeetingProcessor)
+- `deepseek-reasoner` — thinking-mode model with separate `reasoning_content` field. **NOT currently deployed.**
+
+**The 6 features and their applicability rules:**
+
+| # | Feature | Doc | When to recommend | Anti-pattern |
+|---|---|---|---|---|
+| 1 | **Thinking mode** | https://api-docs.deepseek.com/guides/thinking_mode | Use `deepseek-reasoner` only when the task needs multi-step reasoning (math, planning, ambiguous synthesis). Read `reasoning_content` separately from `content`. | Feeding `reasoning_content` back into multi-turn history — explicitly disallowed by the API and degrades subsequent turns. Using reasoner for batch enrichment (3-5x cost, no quality gain on classification). |
+| 2 | **Multi-round chat** | https://api-docs.deepseek.com/guides/multi_round_chat | Default for any conversational state. Send full message history each turn (the API is stateless). | Sending only the latest turn when prior context matters; dropping system messages between turns. |
+| 3 | **Chat prefix completion** | https://api-docs.deepseek.com/guides/chat_prefix_completion | Beta endpoint. Recommend when you need to constrain output start (e.g. force JSON `{`, force a specific opening clause, continue from a partial draft). Set assistant message with `prefix=True`. | Using it in place of a system instruction — it's a continuation primitive, not a steering primitive. |
+| 4 | **FIM completion** | https://api-docs.deepseek.com/guides/fim_completion | `/v1/completions` endpoint with `prompt` + `suffix`. Recommend for code-insertion tasks (IDE autocomplete-like flows), template hole-filling. | Using FIM for chat tasks; FIM is not chat-formatted and breaks instruction-following. |
+| 5 | **Tool calls** | https://api-docs.deepseek.com/guides/tool_calls | Recommend over `response_format: json_object` whenever schema strictness matters. More reliable parsing, machine-enforced field types. Send `tools=[...]`, read `response.tool_calls`. | Defaulting to JSON mode for structured extraction "because it's simpler" — tool calls have a stricter contract and fewer parse failures. |
+| 6 | **KV cache** | https://api-docs.deepseek.com/guides/kv_cache | Always-on server-side. Recommend (a) putting static content (system prompt, few-shot, fixed instructions) FIRST, dynamic content LAST; (b) reading `usage.prompt_cache_hit_tokens` / `usage.prompt_cache_miss_tokens` from every response and logging them. | Variable content interleaved with static (kills cache); not measuring hit rate (no visibility into cache efficiency). |
+
+**Decision shortcuts experts should apply:**
+- "Should we use Deepseek for X?" → Tier-2 fallback / batch enrichment / cost-sensitive structured extraction = yes. Latency-sensitive interactive / agentic tool-heavy / safety-critical = prefer Sonnet.
+- "JSON mode or tool calls?" → Tool calls if schema is fixed and machine-validated downstream. JSON mode only when output schema varies per call.
+- "deepseek-chat or deepseek-reasoner?" → Reasoner only if the failure mode of `chat` is shallow reasoning (not formatting, not factuality). Reasoner is 3-5x cost.
+- "Why is our cache hit-rate low?" → First check prompt ordering (static must be at the beginning, byte-identical across calls). Second check whether system prompts are being mutated per call (timestamp injection, randomized examples).
+
+**Portfolio audit baseline (2026-04-29):** 1 of 6 features used (multi-round chat only). All other 5 features are improvement opportunities. See `00_Governance/BACKLOG.md` → `US-GOV-DEEPSEEK-CACHE-01` and `US-CON-DEEPSEEK-TOOLS-01`.
 
 ## Scoring Gate
 
