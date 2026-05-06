@@ -77,8 +77,21 @@ Never overwrite an existing handover — each session gets its own file.
      collections=["<active-project-collection>"] limit=3
    ```
    If the document doesn't appear, warn in HANDOVER.md under Open Questions: "QMD index may be stale — verify after session."
-5. **Write HANDOVER-{PROJECT}-{YYYY-MM-DD-HHmm}.md** — in project root (or `00_Governance/` for cross-project sessions). Never overwrite an existing file.
+5. **Write HANDOVER-{PROJECT}-{YYYY-MM-DD-HHmm}.md** — in project root (or `00_Governance/` for cross-project sessions). Never overwrite an existing file. Note the full path as `HANDOVER_PATH` for step 7.
 6. **Update memory** — persist key decisions to `.claude/memory.md` if not already there
+7. **Copy to clipboard** — pipe the handover filename + Open Questions + Resume Checklist to `pbcopy` so the user can paste directly into the next session window. `HANDOVER_PATH` is the absolute path from step 5:
+   ```bash
+   HANDOVER_NAME=$(basename "$HANDOVER_PATH")
+   RESUME=$(awk '/^## Resume Checklist/{found=1; next} found && /^## /{exit} found{print}' "$HANDOVER_PATH" | head -15)
+   OPEN=$(awk '/^## Open Questions/{found=1; next} found && /^## /{exit} found{print}' "$HANDOVER_PATH" | head -15)
+   {
+     printf "Continuing from: %s\n" "$HANDOVER_NAME"
+     [ -n "$OPEN" ] && printf "\n## Open Questions\n%s\n" "$OPEN"
+     [ -n "$RESUME" ] && printf "\n## Resume Checklist\n%s\n" "$RESUME"
+   } | pbcopy
+   echo "Clipboard ready — paste into new session: $HANDOVER_NAME"
+   ```
+   macOS only (`pbcopy`). Always run — never skip.
 
 ## Session Attribution (always runs)
 

@@ -11,8 +11,8 @@ End-of-session pipeline. Default mode is **checkpoint** (fast: promote + handove
 
 | Mode | Steps | When to use |
 |------|-------|-------------|
-| `/lightsout` (default) | 0, 1-lite, 2-lite, W, 5, 6 | After any session — cheap, fast, captures context |
-| `/lightsout --full` | 0, 1, 1b, 2, 3, 4, W, 5, 6 | End-of-day or after major deliverables |
+| `/lightsout` (default) | 0, 1-lite, 2-lite, W, W2, M, 5, 6, 8 | After any session — cheap, fast, captures context |
+| `/lightsout --full` | 0, 1, 1b, 2, 3, 4, W, W2, M, 5, 6, 8 | End-of-day or after major deliverables |
 | `/lightsout --dry-run` | Show what would happen, no writes | Debugging |
 | `/lightsout [date]` | Full pipeline for a specific date | Retroactive |
 
@@ -416,6 +416,24 @@ Report: `ingest: <N> msgs, <P>% matched, <M> unmatched` (from script stdout) or 
 
 ---
 
+## Step M — Memory Index Compact (always runs, pre-HANDOVER)
+
+Keep MEMORY.md within the ~24.4KB context load limit by trimming hooks to ≤100 chars. The full detail already lives in each topic file — the hook is just the index pointer.
+
+```bash
+python3 ~/projects/00_Governance/scripts/compact_memory_index.py
+```
+
+Add `--dry-run` to preview without writing. The script:
+- Skips entries already within the limit (idempotent)
+- Flags entries whose topic file is missing (does NOT truncate — would lose data)
+- Appends `…` when truncating so the pointer is clearly incomplete
+- Reports estimated bytes saved and new index size
+
+Report what the script printed. If any `WARNING: topic file missing` lines appear, note them in the HANDOVER for manual cleanup.
+
+---
+
 ## Step 5 — Handoff Note (always runs)
 
 Write a uniquely named handover file — no prompt, no confirmation.
@@ -499,6 +517,36 @@ The lock release is **last** so Steps 0–6 retain exclusive access to the share
 rm -f /tmp/claude-lightsout-active
 rm -f ~/.local/state/lightsout/active.session
 ```
+
+---
+
+## Step 8 — Clipboard Export (always runs, after lock release)
+
+Copy the handover filename and key next-session context to the macOS clipboard so the user can paste directly into a new blank session window — no search, no manual copy.
+
+```bash
+HANDOVER_FILE=$(ls -t ~/projects/00_Governance/HANDOVER-*.md 2>/dev/null | head -1)
+if [ -z "$HANDOVER_FILE" ]; then
+  echo "Clipboard skip: no HANDOVER file found"
+else
+  HANDOVER_NAME=$(basename "$HANDOVER_FILE")
+
+  # Extract Open Items section (stop at next ## heading)
+  OPEN=$(awk '/^## Open Items/{found=1; next} found && /^## /{exit} found{print}' "$HANDOVER_FILE" | head -25)
+  # Extract Resume Checklist section (stop at next ## heading)
+  RESUME=$(awk '/^## Resume Checklist/{found=1; next} found && /^## /{exit} found{print}' "$HANDOVER_FILE" | head -15)
+
+  {
+    printf "Continuing from: %s\n" "$HANDOVER_NAME"
+    [ -n "$OPEN" ] && printf "\n## Open Items\n%s\n" "$OPEN"
+    [ -n "$RESUME" ] && printf "\n## Resume Checklist\n%s\n" "$RESUME"
+  } | pbcopy
+
+  echo "Clipboard ready — paste into new session: $HANDOVER_NAME"
+fi
+```
+
+Skipped silently on `--dry-run`. macOS only (`pbcopy` — no-op on other platforms).
 
 ---
 
