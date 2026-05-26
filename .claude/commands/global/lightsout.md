@@ -11,18 +11,39 @@ End-of-session pipeline. Default mode is **checkpoint** (fast: promote + handove
 
 | Mode | Steps | When to use |
 |------|-------|-------------|
-| `/lightsout` (default) | 0, 1-lite, 2-lite, W, W2, M, 5, 6, 8 | After any session — cheap, fast, captures context |
-| `/lightsout --full` | 0, 1, 1b, 2, 3, 4, W, W2, M, 5, 6, 8 | End-of-day or after major deliverables |
+| `/lightsout` (default) | 0, 1-lite, W, M, 5, ⏚, D, 5b, 6, 7, 8 | After any session — cheap, target <3 min |
+| `/lightsout --full` | 0, 1, 1b, 1c, 2, 2b, 3, 4, W, W2, M, S, R, 5, ⏚, D, 5b, 6, 7, 8 | End-of-day or after major deliverables |
 | `/lightsout --dry-run` | Show what would happen, no writes | Debugging |
 | `/lightsout [date]` | Full pipeline for a specific date | Retroactive |
+
+**Cost discipline.** Default mode dropped W2/S/R/1c/2b after a 15-min wrap-up revealed checkpoint had accreted ceremony. Hourly launchd covers W2; per-commit hooks cover 2b; R/S/1c run end-of-day in `--full`. Target default cost: <3 min, ≤6 tool calls.
+
+---
+
+## Step −3 — Consult session stamp (always runs first)
+
+```bash
+source "$HOME/.claude/scripts/stamp-context.sh"
+# Provides: $SID, $STAMP_FILE, $STAMP, $GOAL_STOP
+```
+
+`$STAMP` is consulted by Step 5 (handover filename + funnel-empty check) and Step 8 (clipboard hint). All other steps are stamp-agnostic — the lightsout pipeline runs identically. When `$STAMP` is set:
+
+- **Step 5 PROJECT derivation:** override the "primary project from session work" heuristic — filename becomes `HANDOVER-${STAMP}-{YYYY-MM-DD-HHmm}.md` directly.
+- **Funnel-empty signal:** after writing the handover, check whether the stamp's funnel is empty (see resolution order in `~/.claude/commands/stamp.md`). If empty, append a final section to the handover:
+  ```markdown
+  ## Stamp Funnel
+  Empty — `/lightsout --full` recommended for this stamp before pivoting.
+  ```
+  This is the signal `resume-handover` reads on the next session to recognize "this topic is done."
 
 ---
 
 ## Step −2 — Acquire Lightsout Lock (always runs first)
 
-Only one `/lightsout` should write to shared governance files (`KNOWN_PATTERNS.md`, `BACKLOG.md`, `pending.jsonl`, `HANDOVER-*.md`) at a time. This step blocks until any sibling lightsout exits, with a 9-minute timeout. Skipped on `--dry-run`.
+Only one `/lightsout` should write to shared governance files (`KNOWN_PATTERNS.md`, `BACKLOG.md`, `pending.jsonl`, `HANDOVER-*.md`) at a time. This step blocks until any sibling lightsout exits, with a 5-minute timeout (TTL-aligned — past 5 min the lock is stale by definition and reclaimed). Skipped on `--dry-run`.
 
-**IMPORTANT:** Invoke the bash block below with `timeout: 600000` so the 9-min wait fits inside the Bash tool's max timeout. Without that, Claude Code will kill the wait at the default 2 min and the lock will not be acquired correctly.
+**IMPORTANT:** Invoke the bash block below with `timeout: 360000` (6 min — covers the 5-min wait plus reclaim overhead). The wait was reduced from 9 min after a 2026-05-16 orphan-lock incident; TTL=5 min means a stale lock is guaranteed reclaimable within 5 min.
 
 The lock is a sentinel file (not `flock(1)`) because kernel locks die with each bash process and Claude skills span many bash calls. Sentinel-as-state with mtime TTL gives self-healing across the full skill duration.
 
@@ -30,9 +51,14 @@ The lock is a sentinel file (not `flock(1)`) because kernel locks die with each 
 mkdir -p ~/.local/state/lightsout
 LOCK=~/.local/state/lightsout/active.session
 SESSION_ID="${CLAUDE_SESSION_ID:-$(date +%s)-$$}"
-TTL_MIN=30           # stale-lock auto-release window
-WAIT_SEC=540         # 9 min — fits inside Claude's 10-min Bash max
-POLL_SEC=10
+TTL_MIN=5            # stale-lock auto-release window (was 30 — orphans now self-heal fast)
+WAIT_SEC=300         # 5 min — past TTL, sibling lock is reclaimed anyway
+POLL_SEC=5           # tighter polling (was 10) — sibling exit picked up faster
+
+# Trap: if this very block exits non-cleanly between acquire and "echo OK",
+# release the lock so the next /lightsout doesn't see a partial-acquire orphan.
+# Only protects this block; later blocks rely on the 5-min TTL.
+trap 'if [ "$(cat "$LOCK" 2>/dev/null)" = "$SESSION_ID" ] && [ "${LOCK_CONFIRMED:-0}" = "0" ]; then rm -f "$LOCK"; fi' EXIT INT TERM
 
 # --dry-run skips the lock entirely (read-only, no contention)
 if [ "${LIGHTSOUT_DRY_RUN:-0}" = "1" ]; then
@@ -76,10 +102,11 @@ until acquire; do
   fi
 done
 
+LOCK_CONFIRMED=1
 echo "LIGHTSOUT_LOCK_OK session=$SESSION_ID waited=${WAITED}s"
 ```
 
-**If the output contains `LIGHTSOUT_TIMEOUT`**: STOP. Do not proceed to Step −1. Report to the user that the sibling lightsout did not finish within 9 min — they should investigate whether the holder is stuck (check `~/.local/state/lightsout/active.session` and the holder's session) or run `/lightsout` again later. End the skill.
+**If the output contains `LIGHTSOUT_TIMEOUT`**: STOP. Do not proceed to Step −1. Report to the user that the sibling lightsout did not finish within 5 min — they should investigate whether the holder is stuck (check `~/.local/state/lightsout/active.session` and the holder's session) or run `/lightsout` again later. End the skill.
 
 **If the output contains `LIGHTSOUT_LOCK_OK`**: continue to Step −1.
 
@@ -104,6 +131,8 @@ Single CLI call — `promote_insights.py` owns the deterministic state machine (
 ```bash
 python3 ~/projects/00_Governance/scripts/promote_insights.py
 ```
+
+The prod (option-2) `promote_insights.py` scans `KNOWN_PATTERNS.md` directly on every run, so there is no sidecar to rebuild — `max_kp` cannot drift behind file edits because the file *is* the source of truth.
 
 Add `--dry-run` to preview, `--no-dedupe` to bypass the duplicate fingerprint check, `--max=N` to cap promotions per run (default 50). The script handles "Last updated" date stamping and archives all entries (KP + non-KP) to `~/.local/state/insights/archive/YYYY-MM.jsonl`.
 
@@ -133,6 +162,10 @@ find ~/projects -maxdepth 2 -name ".git" -type d 2>/dev/null | while read gitdir
   d="$(dirname "$gitdir")"
   echo "=== $(basename "$d") ===" && git -C "$d" log --oneline --since="today" 2>/dev/null
 done
+
+# Always exit 0 — empty grep / empty find above would otherwise return non-zero
+# and cancel any sibling Bash tools running in the same parallel batch.
+exit 0
 ```
 
 If both return empty, note "No tracked completions today — session work was ad-hoc" and continue.
@@ -156,7 +189,7 @@ python3 ~/projects/00_Governance/scripts/backlog_reconciler.py ~/projects/00_Gov
 - Exit 2 (stale stories): include in **Open Items** with `[RECONCILER]` tag
 - Exit 0: note "Backlog reconciler: clean"
 
-### Step 1c — Paperclip ↔ BACKLOG sync (always runs)
+### Step 1c — Paperclip ↔ BACKLOG sync (--full only)
 
 ```bash
 python3 ~/projects/00_Governance/scripts/paperclip_backlog_sync.py
@@ -212,7 +245,9 @@ Full structured summary with commit hashes, grouped by project:
 
 ---
 
-## Step 2b — Automation Debt Sweep (always runs)
+## Step 2b — Automation Debt Sweep (--full only)
+
+> Moved from default to `--full` on 2026-05-16. Per-commit `automation-debt-check.sh` is now the primary producer, so default-mode /lightsout no longer needs this sweep. Run end-of-day via `--full` to catch any uncommitted-session debt.
 
 Sweep accumulated automation debt from `/reflect` scans into Paperclip tickets.
 
@@ -336,7 +371,7 @@ Routine operations that do NOT trigger wiki updates: running existing tests, rea
 Use `wiki.py` CLI for all writes — never inline content in bash (escaping fails with special chars).
 
 ```
-~/projects/00_Governance/wiki/scripts/wiki.py set-section <page-path> "<section heading>" <file.md>
+~/projects/00_Governance/00_Governance/wiki/scripts/wiki.py set-section <page-path> "<section heading>" <file.md>
 ```
 
 **Discover the wiki page via QMD** — do NOT use a hardcoded mapping table. Query the `governance` collection for the wiki export file:
@@ -382,7 +417,9 @@ For new routes/endpoints, update the existing API/Pages table.
 
 ---
 
-## Step W2 — Ingest Prompt Usage (always runs, pre-HANDOVER)
+## Step W2 — Ingest Prompt Usage (--full only, pre-HANDOVER)
+
+> Moved from default to `--full` on 2026-05-16. Hourly launchd already keeps the prompt-usage DB current (AC-13); running it every checkpoint is redundant cost.
 
 Refresh the claude-usage-systray Habits tab by ingesting new user prompts from `~/.claude/projects/*/conversations/*.jsonl` into the prompt-usage DB. Runs **before** HANDOVER is written so the post-run log state is visible to the next session. Non-blocking — ingest failure never aborts `/lightsout` (AC-14).
 
@@ -434,6 +471,133 @@ Report what the script printed. If any `WARNING: topic file missing` lines appea
 
 ---
 
+## Step S — Session Shape Audit (--full only, pre-HANDOVER)
+
+> **Migration note (2026-05-16):** Moved out of default. Shape audit is diagnostic, not load-bearing — running it every session costs ~4 tool calls for an output the user almost never reads in-line. Stays in `--full` for end-of-day review.
+
+Classify this session's tool calls and report the realized shape. Read-only — never blocks /lightsout. The output is appended to the HANDOVER's "Session Shape" section.
+
+```bash
+# SESSION_TYPE is set by kickoff Step 3b; defaults to execution if absent
+TYPE_FILE=~/.local/state/claude/session-type
+SESSION_TYPE=$(head -1 "$TYPE_FILE" 2>/dev/null || echo "execution")
+python3 ~/projects/00_Governance/scripts/session_shape_audit.py --type "$SESSION_TYPE"
+```
+
+The audit prints one line like:
+
+```
+sid8       tc  cer met dis imp ver glu oth  ratio              shape
+abc12345   47   8   4  13  12   1   8   1  impl= 26% cere= 17%  execution-ok
+```
+
+**Shape labels:**
+- `execution-ok` — declared execution + impl ≥25%
+- `execution-empty` — declared execution + impl <25% (the failure mode this system targets)
+- `meta (declared)` — declared meta, no impl (clean)
+- `meta-creep` — declared meta but did impl anyway (mixed)
+- `clearing` / `clearing-overrun` — declared clearing, ≤20 / >20 TC
+- `shipped` / `mixed` / `no-impl` — undeclared sessions, descriptive only
+
+Append the line to HANDOVER under `## Session Shape`. If the label is `execution-empty`, also append:
+
+> WARNING: declared execution but did not ship — next session should re-attempt without governance side-quests.
+
+**Calibration note:** thresholds (impl ≥25%, cere ≤20%) are empirically grounded against 26 audited sessions (impl median 8%, cere median 25%). Aspirational thresholds shame the rule; empirical ones enforce it. Revisit after ≥30 days of typed sessions.
+
+---
+
+## Step R — Backlog Roll-Call (--full only, pre-HANDOVER)
+
+> **Migration note (2026-05-16):** Moved out of default. Portfolio-wide Ready sweep is expensive (multi-project grep + sort) and the data only matters at end-of-day or before /lightsout-driven planning. The next-session handover can re-query on demand.
+
+Portfolio-wide answer to **"what is still left to implement overall?"**. Single batched bash block that mirrors Step 1's multi-project sweep but on the "what's left" side. Read-only — never blocks. Output is appended to HANDOVER under `## Backlog Roll-Call` so the next session sees portfolio state without re-querying.
+
+The roll-call answers three questions in one pass:
+1. **Central BACKLOG.md `## Ready`** — items cleared for execution
+2. **Per-project `BACKLOG.md` `## Ready`** — project-scoped Ready counts
+3. **TODO-Today.md leftovers** — unchecked `- [ ]` tasks the session didn't finish
+
+```bash
+# Single batched roll-call — all reads in one parallel-safe block. Never fails the skill.
+ROLLCALL_OUT=/tmp/lightsout-rollcall.md
+GW=~/projects/00_Governance
+
+{
+  echo "## Backlog Roll-Call"
+  echo ""
+
+  # --- Central BACKLOG.md Ready items (the canonical "what's left") ---
+  CENTRAL="$GW/BACKLOG.md"
+  if [ -f "$CENTRAL" ]; then
+    READY_TITLES=$(awk '
+      /^## Ready/ {flag=1; next}
+      /^## (Refining|Ideation|Done|Critical|In Progress)/ {flag=0}
+      /^# / {flag=0}
+      flag && /^### US-/ {print}
+    ' "$CENTRAL")
+    READY_COUNT=$(printf "%s\n" "$READY_TITLES" | grep -c "^### US-" || echo 0)
+    echo "### Central — $READY_COUNT Ready"
+    if [ "$READY_COUNT" -gt 0 ]; then
+      printf "%s\n" "$READY_TITLES" | sed 's/^### /- /' | head -20
+      [ "$READY_COUNT" -gt 20 ] && echo "- … (+$((READY_COUNT - 20)) more)"
+    fi
+    echo ""
+  fi
+
+  # --- Per-project BACKLOG.md Ready counts ---
+  echo "### By Project"
+  echo ""
+  echo "| Project | Ready | Top item |"
+  echo "|---------|------:|----------|"
+  for bk in ~/projects/*/BACKLOG.md; do
+    [ -f "$bk" ] || continue
+    proj=$(basename "$(dirname "$bk")")
+    titles=$(awk '
+      /^## Ready/ {flag=1; next}
+      /^## (Refining|Ideation|Done|Critical|In Progress)/ {flag=0}
+      /^# / {flag=0}
+      flag && /^### US-/ {print}
+    ' "$bk")
+    n=$(printf "%s\n" "$titles" | grep -c "^### US-" || echo 0)
+    [ "$n" -eq 0 ] && continue
+    top=$(printf "%s\n" "$titles" | head -1 | sed 's/^### //' | cut -c1-70)
+    echo "| $proj | $n | $top |"
+  done
+  echo ""
+
+  # --- TODO-Today.md leftovers (unchecked tasks from active queues) ---
+  TODO_LEFT=0
+  TODO_DETAILS=""
+  for todo in "$GW"/TODO-Today.md ~/projects/*/TODO-Today.md; do
+    [ -f "$todo" ] || continue
+    # Count unchecked top-level checkboxes
+    unchecked=$(grep -cE "^- \[ \]" "$todo" 2>/dev/null || echo 0)
+    [ "$unchecked" -eq 0 ] && continue
+    TODO_LEFT=$((TODO_LEFT + unchecked))
+    label=$(echo "$todo" | sed "s|$HOME/||")
+    TODO_DETAILS="${TODO_DETAILS}- $label: $unchecked open\n"
+  done
+  if [ "$TODO_LEFT" -gt 0 ]; then
+    echo "### TODO-Today leftovers — $TODO_LEFT total"
+    printf "$TODO_DETAILS"
+  else
+    echo "### TODO-Today leftovers — none"
+  fi
+  echo ""
+} > "$ROLLCALL_OUT" 2>/dev/null
+
+# Print to stdout so the report shows it, and keep the file for Step 5 to append.
+cat "$ROLLCALL_OUT"
+exit 0
+```
+
+The output file `/tmp/lightsout-rollcall.md` is consumed by **Step 5** — append its contents verbatim under a `## Backlog Roll-Call` section in HANDOVER. If the file is missing or empty, skip the section silently (never fail the handover on roll-call issues).
+
+**Why batched, not split:** sweeping 10+ BACKLOG.md files plus TODO-Today files via separate Read calls would cost ~12 tool calls and bloat context with full-file content. The grep/awk approach extracts only the Ready titles (<2KB total) in one bash invocation.
+
+---
+
 ## Step 5 — Handoff Note (always runs)
 
 Write a uniquely named handover file — no prompt, no confirmation.
@@ -442,43 +606,122 @@ Write a uniquely named handover file — no prompt, no confirmation.
 **Location:** `~/projects/00_Governance/`
 **Example:** `HANDOVER-75_Coaching-2026-04-27-1557.md`
 
-Derive `{PROJECT}` from the session's primary project (same as Step 6 attribution — use canonical names: `30_SVG-PAINT`, `50_KETO`, `20_CONSIGLIERE`, `75_Coaching`, `00_Governance`, etc.). If multiple projects were touched, use the one with the most DONE-Today entries or most commits.
+**Output discipline:** after the file is written, the immediate user-facing line MUST be the full absolute path (e.g. `Handover written to: /Users/jcords-macmini/projects/00_Governance/HANDOVER-…md`). Never report only the basename — the absolute path is what makes the line a clickable IDE link and what lets the user `Read` it directly. This rule applies to every step in `/lightsout` that writes a handover (Step 5, Step ⏚ merge output, Step 8 clipboard echo).
+
+Derive `{PROJECT}`:
+- **Stamped session** (`$STAMP` non-empty from Step −3) → `{PROJECT} = $STAMP`. No heuristic, no scan. The stamp is the truth.
+- **Unstamped session** → derive from the session's primary project (same as Step 6 attribution — use canonical names: `30_SVG-PAINT`, `50_KETO`, `20_CONSIGLIERE`, `75_Coaching`, `00_Governance`, etc.). If multiple projects were touched, use the one with the most DONE-Today entries or most commits.
 
 Include:
 - Last task and queue position
 - All completed work (same detail as Step 2 summary)
 - Decisions made
 - Open items / carry-forwards
+- **Every User Story title must carry a `*(Nd)*` age suffix** (days since creation — look up in BACKLOG.md, do not omit)
 - Overnight DAGs started (if --full)
 - Workspace state: last KP number, pending suggestions, scan/retro age, pending insights
+- **Backlog Roll-Call** — append the contents of `/tmp/lightsout-rollcall.md` verbatim (produced by Step R). Skip the section silently if the file is missing or empty.
 - Resume checklist
+
+## Step ⏚ — Parallel-Session Merge (always runs, after HANDOVER write)
+
+Detect sibling HANDOVER files written by parallel Claude sessions since this session started. If any are found, merge them into a single `HANDOVER-merged-{timestamp}.md` so the next session has one canonical resume pointer instead of N rival ones.
+
+**Signal:** a handover is "parallel" iff it was created after `CLAUDE_SESSION_START_EPOCH`. Anything older belongs to a prior wrap-up and is left alone.
+
+**Survivor selection (3-by-content-size):** the file with the largest byte count becomes the **primary**. Its body is copied verbatim into the merged file. Siblings contribute only their `Open Items`, `Resume Checklist`, `Backlog Roll-Call`, and `Next Tasks` sections under a `## Cross-Session Additions` block, deduped by US-id against the primary.
+
+**Originals are preserved.** The merge file is additive — no source handover is moved or deleted. Audit trail stays intact, and `git log` of the worktree shows every per-session handover plus the merged consolidation.
+
+```bash
+# Derive the just-written handover (newest non-merged) — Step 8 uses the same
+# pattern. The merge script discovers parallel siblings via the detect script
+# using CLAUDE_SESSION_START_EPOCH.
+GW=~/projects/00_Governance
+SELF=$(ls -t "$GW"/HANDOVER-*.md 2>/dev/null | grep -v '/HANDOVER-merged-' | head -1)
+if [ -z "$SELF" ]; then
+  echo "Step ⏚: no handover to merge against — skipping"
+else
+  python3 "$GW/scripts/parallel_session_merge.py" --auto --self "$SELF"
+fi
+exit 0
+```
+
+**Outcomes:**
+- "No parallel handovers to merge." → continue silently to Step D
+- "Merged handover written: HANDOVER-merged-YYYY-MM-DD-HHmm.md" → report the path. The merged file goes through Step 5b's governance commit alongside the original.
+- Script failure (non-zero) → log warning, continue. Never blocks `/lightsout`.
+
+**Why this step lives after Step 5 and before Step 5b:** the merged file must exist on disk before the governance commit fires, so the commit captures the consolidation atomically with the primary handover.
+
+---
+
+## Step D — Spawn Dreaming (non-blocking, AC-06)
+
+After writing HANDOVER.md, spawn Dreaming as a background process. This is non-blocking — /lightsout returns immediately without waiting for Dreaming to complete.
+
+> [!IMPORTANT]
+> **Step D MUST run in its own turn — never batch with Step 5b or any other Bash call.**
+> Step 5b's governance commit can legitimately exit non-zero (pre-commit hook fail, empty diff, hook signing error). If Step D shares a parallel Bash batch with a sibling that errors, the harness cancels the spawn with `Cancelled: parallel tool call X errored` and Dreaming silently never starts.
+> Step D runs **before** Step 5b precisely so its execution is independent of governance-commit outcome.
+
+```bash
+DREAMING_SCRIPT="$HOME/projects/00_Governance/scripts/dreaming.py"
+DREAMING_LOG_DIR="$HOME/.local/state/dreaming"
+mkdir -p "$DREAMING_LOG_DIR"
+DREAMING_LOG="$DREAMING_LOG_DIR/run-$(date +%s%3N).log"
+
+if [ -f "$DREAMING_SCRIPT" ]; then
+  nohup python3 "$DREAMING_SCRIPT" --mode lightsout >> "$DREAMING_LOG" 2>&1 &
+  DREAMING_PID=$!
+  echo "Dreaming spawned (pid=$DREAMING_PID, log=$DREAMING_LOG)"
+else
+  echo "Dreaming script not found at $DREAMING_SCRIPT — skipping"
+fi
+```
+
+Do NOT wait for Dreaming to complete. The session exits immediately after this step.
+
+---
 
 ### Step 5b — Commit Governance Changes (always runs)
 
 Per the global CLAUDE.md allowlist (pre-authorized: `KNOWN_PATTERNS.md`, `HANDOVER-*.md`, `BACKLOG.md` + project-scoped variants), Step 5b auto-commits **only those files**. Everything else in `00_Governance` stays dirty until explicit user review — splitting the staging to sneak unapproved paths in would launder the permission gate (explicitly prohibited by KP-744).
 
 ```bash
-cd ~/projects/00_Governance && {
-  # Stage KNOWN_PATTERNS.md and BACKLOG.md if changed
-  ALLOWED=(KNOWN_PATTERNS.md BACKLOG.md)
-  CHANGED_ALLOWED=()
-  for f in "${ALLOWED[@]}"; do
-    git diff --quiet -- "$f" 2>/dev/null || CHANGED_ALLOWED+=("$f")
-  done
-  # Stage new HANDOVER-*.md files (untracked, pattern-matched)
-  HANDOVER_NEW=$(git ls-files --others --exclude-standard 'HANDOVER-*.md')
-  [ -n "$HANDOVER_NEW" ] && CHANGED_ALLOWED+=($HANDOVER_NEW)
-  if [ ${#CHANGED_ALLOWED[@]} -eq 0 ]; then
-    echo "Governance allowlist clean — no commit needed"
-  else
-    git add "${CHANGED_ALLOWED[@]}"
-    git commit -m "chore(governance): /lightsout session wrap-up $(date +%Y-%m-%d)"
-    echo "Governance committed: ${CHANGED_ALLOWED[*]}"
-  fi
-  # Report (do not stage) other dirty files so user sees them
-  OTHER=$(git status --porcelain | wc -l | tr -d ' ')
-  [ "$OTHER" -gt 0 ] && echo "Note: $OTHER other governance files dirty — review manually"
-}
+# All governance files live in the git-backed worktree at GW.
+# ~/projects/00_Governance is the non-git parent — never run git there.
+GW=~/projects/00_Governance
+
+CHANGED=()
+
+# Modified allowlist files
+for f in BACKLOG.md KNOWN_PATTERNS.md; do
+  git -C "$GW" diff --quiet -- "$f" 2>/dev/null || CHANGED+=("$f")
+done
+
+# New HANDOVER-*.md files (untracked) — read line-by-line so each filename lands
+# in its own array slot. CHANGED+=($HANDOVER_NEW) word-splits at the array-append
+# boundary but later "${CHANGED[@]}" preserves a multi-line slot as one joined arg,
+# making `git add` see "file1\nfile2" as a single pathspec.
+HANDOVER_NEW=$(git -C "$GW" ls-files --others --exclude-standard 'HANDOVER-*.md')
+while IFS= read -r f; do
+  [ -n "$f" ] && CHANGED+=("$f")
+done <<< "$HANDOVER_NEW"
+
+if [ ${#CHANGED[@]} -eq 0 ]; then
+  echo "governance allowlist clean — no commit needed"
+else
+  git -C "$GW" add "${CHANGED[@]}"
+  git -C "$GW" commit -m "chore(governance): /lightsout session wrap-up $(date +%Y-%m-%d)"
+  echo "governance committed: ${CHANGED[*]}"
+fi
+
+OTHER=$(git -C "$GW" status --porcelain | wc -l | tr -d ' ')
+[ "$OTHER" -gt 0 ] && echo "Note: $OTHER other governance files dirty — review manually"
+# Guard final conditional — when OTHER=0 the `&&` returns false and would
+# cancel any sibling Bash tools running in the same parallel batch.
+exit 0
 ```
 
 Rules:
@@ -537,12 +780,15 @@ else
   RESUME=$(awk '/^## Resume Checklist/{found=1; next} found && /^## /{exit} found{print}' "$HANDOVER_FILE" | head -15)
 
   {
-    printf "Continuing from: %s\n" "$HANDOVER_NAME"
+    printf "Continuing from: %s\n" "$HANDOVER_FILE"
     [ -n "$OPEN" ] && printf "\n## Open Items\n%s\n" "$OPEN"
     [ -n "$RESUME" ] && printf "\n## Resume Checklist\n%s\n" "$RESUME"
   } | pbcopy
 
-  echo "Clipboard ready — paste into new session: $HANDOVER_NAME"
+  # User-facing terminal output MUST be the full absolute path so the IDE
+  # renders it as a clickable link (per feedback_handover_print_full_path).
+  echo "Handover written to: $HANDOVER_FILE"
+  echo "Clipboard ready — paste into new session."
 fi
 ```
 
@@ -553,18 +799,29 @@ Skipped silently on `--dry-run`. macOS only (`pbcopy` — no-op on other platfor
 ## Usage
 
 ```
-/lightsout              # checkpoint (default): Steps 0, 1-lite, 2-lite, Wiki, 5, 6
-/lightsout --full       # full pipeline: all steps including publish, DAGs + Wiki
+/lightsout              # checkpoint (default): Steps 0, 1-lite, W, M, 5, ⏚, D, 5b, 6, 7, 8 — target <3 min
+/lightsout --full       # full pipeline: adds 1b, 1c, 2, 2b, 3, 4, W2, S, R — end-of-day only
 /lightsout --dry-run    # show what would happen, no writes
 /lightsout [date]       # retroactive for a specific date (implies --full)
 ```
 
 ### When to use which
 
-- **After any session**: `/lightsout` (default) — 6-10 tool calls, captures everything essential + wiki
-- **End of day**: `/lightsout --full` — 15-25 tool calls, publishes articles, starts DAGs
+- **After any session**: `/lightsout` (default) — ~5-7 tool calls, <3 min, captures handover + commits governance + releases lock
+- **End of day**: `/lightsout --full` — 15-25 tool calls, publishes articles, sweeps debt, ingests prompts, audits shape, rolls call backlog
 - **After major deliverable** (PR, panel review, batch completion): `/lightsout` then fresh session
 - **Session-length-guard warning** (25 tool calls): `/lightsout` immediately, then fresh session
+
+### What got moved out of default (2026-05-16)
+
+The default mode was bleeding 6+ minutes on steps that don't belong on the per-session hot path:
+- **W2 (prompt-usage ingest)** — already covered by hourly launchd job
+- **S (session shape audit)** — diagnostic, not load-bearing
+- **R (backlog roll-call)** — expensive multi-project grep, only matters at EOD
+- **1c (paperclip ↔ backlog sync)** — runs as Paperclip cron elsewhere
+- **2b (automation debt sweep)** — per-commit hooks already capture this
+
+Lock TTL was also dropped from 30 min → 5 min so orphan locks self-heal in minutes, not half an hour. A `trap EXIT` was added to Step −2 so unconfirmed locks clean themselves up when /lightsout exits early. The 9-min wait that triggered this rewrite is no longer reachable in the default path.
 
 ### Cost Discipline
 

@@ -1,6 +1,6 @@
 ---
 name: sh-finish
-description: "Use when implementation is done and all tests pass — before merging a branch, creating a PR, or declaring a feature complete"
+description: Complete development work -- verify tests, present merge/PR/cleanup options, handle branch finishing
 ---
 
 # Finishing a Development Branch
@@ -39,47 +39,7 @@ Cannot proceed with merge/PR until tests pass.
 
 Stop. Don't proceed to Step 2.
 
-**If tests pass:** Continue to Step 1b.
-
-### Step 1b: CLI Registration Check (mandatory)
-
-Scan the branch diff for new CLI entry points:
-
-```bash
-BASE=$(git merge-base HEAD main 2>/dev/null || git merge-base HEAD master 2>/dev/null)
-git diff --name-only --diff-filter=A "$BASE" HEAD | grep -E '\.(py|sh)$'
-```
-
-For each new `.py` file, check if it's a CLI entry point:
-```bash
-grep -l "if __name__\|argparse\|import click\|import typer" <file>
-```
-
-For each new `.sh` file, check if it's an invocable script (has `#!/` shebang and takes args or performs a standalone task).
-
-**For each CLI file detected**, verify both registration files exist in `~/.claude/projects/-Users-jcords-macmini-projects/memory/`:
-
-1. `reference_<name>_cli.md` — path, invocation, what manual step it replaces
-2. `feedback_use_<name>_cli.md` — "when X, use CLI — never manual"
-3. A line in the relevant project `CLAUDE.md` under Tool Preferences
-
-**If any registration is missing:**
-
-```
-CLI Registration Required — cannot proceed
-
-New CLI detected: <path>
-Missing:
-  [ ] reference_<name>_cli.md in memory/
-  [ ] feedback_use_<name>_cli.md in memory/
-  [ ] CLAUDE.md Tool Preferences entry
-
-Create these now, then re-run sh:finish.
-```
-
-Stop. Do not proceed to Step 2 until all detected CLIs are registered.
-
-**If no new CLI files detected, or all are registered:** Continue to Step 2.
+**If tests pass:** Continue to Step 2.
 
 ### Step 2: Determine Base Branch
 

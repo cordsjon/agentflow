@@ -1,6 +1,6 @@
 ---
 name: sh-business-panel
-description: "Use when evaluating a business model, go-to-market decision, pricing strategy, build-vs-buy trade-off, or any decision with commercial or strategic impact"
+description: "Multi-expert business analysis with advisory recommendations (no scoring gate)"
 ---
 
 # /sh:business-panel — Business Panel Analysis
@@ -13,28 +13,15 @@ description: "Use when evaluating a business model, go-to-market decision, prici
 
 ## Behavioral Flow
 
-1. **Load Panel Config**: Read `experts/panels/business-panel.yaml` for panel definition, focus areas, and auto-select rules
-2. **Load Experts**: Read expert files from `experts/individuals/` for each selected expert — these contain domain, methodology, and critique focus
+1. **Load Panel Config**: Read `/Users/jcords-macmini/projects/20_agentflow/experts/panels/business-panel.yaml` for panel definition, focus areas, and auto-select rules (absolute path — relative paths fail when CWD is outside agentflow)
+2. **Load Experts**: Read expert files from `/Users/jcords-macmini/projects/20_agentflow/experts/individuals/` for each selected expert — these contain domain, methodology, and critique focus
 3. **Auto-Select Experts**: Scan content against panel YAML `auto-select` keywords — add matching experts up to `max-experts: 6` cap
 4. **Analyze**: Parse business content, identify strategic themes and domains
 5. **Assemble Panel**: Select experts based on `--focus` area or use `default-experts`. `--experts` override replaces defaults entirely
 6. **Conduct Analysis**: Run analysis in the selected mode using each expert's distinct framework
 7. **Synthesize**: Generate consolidated findings with consensus, disagreements, and prioritized recommendations
 
-## Scoring Gate
-
-4 dimensions, each scored 0-10:
-
-| Dimension       | Description                                           |
-|-----------------|-------------------------------------------------------|
-| Viability       | Business model soundness, revenue logic, unit economics |
-| Strategic Fit   | Alignment with market opportunity and competitive position |
-| Risk Profile    | Identified risks, mitigations, antifragility           |
-| Actionability   | Clarity of next steps, measurability of outcomes        |
-
-**Pass threshold: overall score >= 7.0**
-
-Below threshold = strategy needs rework before proceeding.
+**No scoring gate** — this is an advisory panel. It produces strategic analysis and recommendations only.
 
 ## Expert Panel (9 experts from core-business pack)
 
@@ -71,12 +58,10 @@ Question-driven exploration for deep strategic thinking. Experts pose probing qu
 ## Output
 
 Business analysis document containing:
-- Multi-expert analysis with distinct perspectives
-- Per-dimension scores and overall quality score
-- Pass/fail gate result
+- Expert perspectives from selected panelists
 - Consensus points across experts
 - Disagreements with reasoning from each side
 - Priority-ranked strategic recommendations
 - Actionable next steps
 
-**SYNTHESIS ONLY** — this panel produces analysis and recommendations. It does not implement any business recommendations, make code changes, or execute decisions without explicit user approval.
+**SYNTHESIS ONLY** — this panel produces expert analysis and recommendations. It does not implement any business recommendations, make code changes, or execute decisions without explicit user approval.

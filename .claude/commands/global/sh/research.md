@@ -1,9 +1,7 @@
 ---
 name: sh-research
-description: "Use when answering questions that require current external data, competitive intel, technology comparisons, or facts outside training data"
+description: "Deep web research with parallel search, source validation, and evidence-based findings"
 ---
-
-<!-- Host Conventions: Read=`Read`, Edit=`Edit`, Shell=`Bash`, Search=`Glob`/`Grep`, WebSearch=`WebSearch`, Write=`Write`, Tasks=`TodoWrite`. Set $AGENT_PLATFORM to override. Full table: 00_Governance/templates/HOST-CONVENTIONS.md -->
 
 # Deep Research
 

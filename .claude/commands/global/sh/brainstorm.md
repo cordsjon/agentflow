@@ -1,9 +1,7 @@
 ---
 name: sh-brainstorm
-description: "Use before starting any new feature, redesign, or spec — when requirements are fuzzy, scope is undefined, or intent needs exploration"
+description: "Requirements discovery through Socratic dialogue. Explores intent, constraints, and design before implementation."
 ---
-
-<!-- Host Conventions: Read=`Read`, Edit=`Edit`, Shell=`Bash`, Search=`Glob`/`Grep`, WebSearch=`WebSearch`, Write=`Write`, Tasks=`TodoWrite`. Set $AGENT_PLATFORM to override. Full table: 00_Governance/templates/HOST-CONVENTIONS.md -->
 
 # Brainstorming Ideas Into Designs
 

@@ -1,153 +1,92 @@
 ---
-name: sh:ai-panel
-description: "Multi-expert LLM/AI strategy panel with Claude Code + VS Code + macOS workflow optimization, scoring gate, and cost-quality analysis. Use when making AI tool decisions, model selection, prompt engineering, agent architecture, or Claude Code workflow optimization."
-needs: [code-context?, doc-lookup?]
+name: sh-ai-panel
+description: "Multi-expert AI/ML specification review with scoring gate — model architecture, evaluation rigor, safety/alignment, and production readiness for AI systems and LLM apps"
 ---
 
-# /sh:ai-panel — Expert LLM/AI Strategy & Workflow Panel
+# /sh:ai-panel — Expert AI/ML Review Panel
 
 ## Usage
 
 ```
-/sh:ai-panel [ai_question|@file|@prompt] [--mode discussion|critique|socratic] [--evidence passive|active] [--focus model-selection|prompt-engineering|rag-architecture|agent-design|evaluation|cost-optimization|claude-code-workflow|mcp-tooling] [--experts "name1,name2"] [--iterations N] [--verbose]
+/sh:ai-panel [specification_content|@file] [--mode discussion|critique|socratic|debate] [--focus fundamentals|evaluation|safety|production|ethics-data] [--experts "name1,name2"] [--iterations N]
 ```
 
-## Primary Context: Claude Code + VS Code + macOS
+## When to Use
 
-All expert advice is biased toward this stack:
-- **Claude Code** (Opus/Sonnet/Haiku tiers, skills, hooks, plugins, subagents, MCP servers)
-- **VS Code** (extensions, keybindings, panel workflow, integrated terminal)
-- **macOS** (Homebrew, native tools, shell integration, Keychain, Shortcuts)
-- **MCP servers** as the tool ecosystem
-- **Skills & hooks** as the automation layer
+- Reviewing AI/ML system specs, training plans, or eval designs before implementation
+- Pressure-testing LLM-app architectures (RAG pipelines, agent frameworks, fine-tune plans)
+- Checking capability claims for hype, contamination, or unjustified anthropomorphism
+- Evaluating safety/alignment posture proportionate to system capability
+- Costing scaling proposals (FLOPs, data budget, serving cost) before commitment
 
-## Verbosity
-
-- **Silent (default)**: No expert deliberations. Output only: score table, FIPD-classified findings list, and auto-fix diff. Saves ~60-80% output tokens.
-- **Verbose (`--verbose`)**: Full expert deliberations, cross-expert dialogue, reasoning traces, and detailed per-expert analysis before scores and findings.
-
-Silent mode still performs full internal analysis — quality is preserved, only the output is compressed.
+Use `sh-spec-panel` instead for classical software specs without an AI/ML core. Use `sh-research-panel` for OSINT/data-collection plans.
 
 ## Behavioral Flow
 
-1. **Ingest**: Parse input — detect prompts, CLAUDE.md, settings.json, skill files, agent configs, or strategy questions
-2. **Classify**: Identify AI domain (model selection, prompt design, workflow, evaluation) and complexity
-3. **Assemble Panel**: Select experts based on `--focus` area or use defaults. Max 6 experts per review.
-4. **Conduct Review**: Run analysis in selected mode using each expert's distinct methodology
-5. **Gather Evidence** (if `--evidence active`): Experts inspect CLAUDE.md, settings, skills, hooks, MCP configs
-6. **Score**: Rate AI strategy across 5 dimensions (0-10 each), compute overall score
-7. **Gate Check**: Overall score must be >= 7.0 to pass. Below threshold = strategy needs optimization
+1. **Load Panel Config**: Read `/Users/jcords-macmini/projects/20_agentflow/experts/panels/ai-panel.yaml` for focus areas, auto-select rules, and scoring config (absolute path — relative paths fail when CWD is outside agentflow)
+2. **Load Experts**: Read expert files from `/Users/jcords-macmini/projects/20_agentflow/experts/individuals/` for each selected expert
+3. **Auto-Select Experts**: Scan the specification content against panel YAML `auto-select` keywords — add matching experts up to `max-experts: 6` cap
+4. **Analyze**: Parse spec content, identify model/data/eval/serving components, surface gaps
+5. **Assemble Panel**: Select experts based on `--focus` area or use `default-experts`. `--experts` override replaces defaults entirely
+6. **Conduct Review**: Run analysis in the selected mode using each expert's distinct methodology
+7. **Score**: Rate across 4 dimensions (0-10 each), compute overall score
+8. **Gate Check**: Overall score must be >= 7.0 to pass. Below threshold = AI spec needs rework
 
-## Expert Panel (10 experts)
+## Expert Loading
 
-| Category | Expert | Domain |
-|---|---|---|
-| Neural Net Fundamentals | Andrej Karpathy | Scaling laws, tokenization, model capabilities, task-model matching |
-| Practical LLM Tool Use | Simon Willison | MCP ecosystem, minimal prompts, tool-augmented workflows, pragmatics |
-| Agent Architecture | Lilian Weng | Agent patterns (ReAct, Plan-Execute), RAG design, retrieval quality |
-| AI Engineering | Swyx (Shawn Wang) | AI engineer discipline, build-vs-prompt, production AI strategy |
-| Reasoning & CoT | Jason Wei | Chain-of-thought, instruction design, reasoning trace architecture |
-| MLOps & Cost | Chip Huyen | Token economics, model routing, caching, cost-quality Pareto analysis |
-| Claude Character | Amanda Askell | System prompt architecture, CLAUDE.md design, Claude-specific patterns |
-| Fine-Tuning | Jeremy Howard | Transfer learning, when to fine-tune vs prompt, practical deep learning |
-| Evaluation | Hamel Husain | Evals-driven development, skill testing, consistency measurement |
-| AI Adoption | Ethan Mollick | Workflow design, jagged frontier, human-AI task allocation |
+Experts are defined as individual markdown files in `/Users/jcords-macmini/projects/20_agentflow/experts/individuals/`. Each file contains:
+- Domain and methodology
+- Critique voice (opening move in panel discussion)
+- Looks-for / red-flags / approves-when triplet
+- Interaction style across modes
+
+The panel YAML defines which experts belong to which focus area, who leads each, auto-select keyword rules, and scoring config.
 
 ## Analysis Modes
 
 ### Discussion Mode (`--mode discussion`)
-Collaborative AI strategy exploration. Experts debate model selection, prompt design, and workflow optimization. Cross-expert validation of AI architectural decisions. Default mode.
+Experts build on each other's insights. Karpathy reduces abstract claims to concrete experiments; Chollet sharpens eval design; Huyen pulls toward deployment realism; Bender disciplines capability claims. Synthesis-first.
 
 ### Critique Mode (`--mode critique`)
-Systematic review with severity-classified findings (CRITICAL / MAJOR / MINOR). Each finding includes: expert attribution, ROI estimate, specific recommendation, priority ranking, and quality impact. Best paired with `--evidence active` for config-verified findings.
+Severity-classified issues (CRITICAL / MAJOR / MINOR), each with expert attribution, specific recommendation, and impact estimate. Highest-signal for gate decisions.
 
 ### Socratic Mode (`--mode socratic`)
-Strategic questioning to develop AI thinking. Experts challenge model choices, prompt assumptions, and workflow design. No direct answers — forces the user to think about AI strategy fundamentals.
+Each expert asks the questions they would ask before approving. No direct answers — forces the author to confront gaps. Useful early in design.
 
-## Evidence Modes
-
-- `--evidence passive` (default): Expert opinions based on provided content only. No tool calls.
-- `--evidence active`: Experts inspect CLAUDE.md, settings.json, skill files, MCP configs, and hook definitions. Produces measurement-backed findings with specific file references.
+### Debate Mode (`--mode debate`)
+Adversarial stress-test. Karpathy vs Bender on capability claims; Kaplan vs Chollet on scale vs generalization; Russell vs Huyen on safety vs velocity. Surfaces hidden assumptions.
 
 ## Focus Areas
 
-- **model-selection**: Task-model matching, tier routing (Haiku/Sonnet/Opus), capability boundaries. Lead: Karpathy. Experts: Karpathy, Huyen, Wei
-- **prompt-engineering**: CLAUDE.md design, skill prompts, instruction hierarchy, Claude-specific patterns. Lead: Askell. Experts: Askell, Wei, Willison
-- **rag-architecture**: Retrieval strategy, vexp pipeline vs custom RAG, reranking, context injection. Lead: Weng. Experts: Weng, Karpathy, Huyen
-- **agent-design**: Subagent patterns, tool orchestration, multi-agent coordination, skill as specialization. Lead: Weng. Experts: Weng, Shawn Wang, Willison
-- **evaluation**: Skill testing, output consistency, scoring gate calibration, regression testing. Lead: Husain. Experts: Husain, Huyen, Wei
-- **cost-optimization**: Token economics, model routing, caching, session management, build-vs-prompt. Lead: Huyen. Experts: Huyen, Karpathy, Shawn Wang
-- **claude-code-workflow**: CLAUDE.md optimization, skill portfolio, hooks, MCP curation, session design, VS Code + macOS integration. Lead: Willison. Experts: Willison, Askell, Mollick, Shawn Wang
-- **mcp-tooling**: Server selection, tool orchestration, custom server design, latency optimization. Lead: Willison. Experts: Willison, Weng, Shawn Wang
-- **deepseek**: Deepseek-specific API surface, feature gaps, tier-2 fallback design. Lead: Huyen. Experts: Huyen, Willison, Wei. Auto-loads the **Deepseek Reference** block below.
-
-## Deepseek Reference (authoritative — cite these, don't paraphrase from training data)
-
-When Deepseek comes up in any review, experts MUST consult this block before commenting on capability, cost, or architecture. Training data on Deepseek is sparse and often stale; this section is the source of truth.
-
-**Models in this portfolio's stack:**
-- `deepseek-chat` — general chat, OpenAI-compatible, used by Consigliere `idea/additions.py`, `catalog/discover.py`, FLM `router_client.py`
-- `deepseek-v4-flash` — cheaper/faster variant, used as Tier-2 fallback (KETO enrichment, Briefing Publisher, Coaching MeetingProcessor)
-- `deepseek-reasoner` — thinking-mode model with separate `reasoning_content` field. **NOT currently deployed.**
-
-**The 6 features and their applicability rules:**
-
-| # | Feature | Doc | When to recommend | Anti-pattern |
-|---|---|---|---|---|
-| 1 | **Thinking mode** | https://api-docs.deepseek.com/guides/thinking_mode | Use `deepseek-reasoner` only when the task needs multi-step reasoning (math, planning, ambiguous synthesis). Read `reasoning_content` separately from `content`. | Feeding `reasoning_content` back into multi-turn history — explicitly disallowed by the API and degrades subsequent turns. Using reasoner for batch enrichment (3-5x cost, no quality gain on classification). |
-| 2 | **Multi-round chat** | https://api-docs.deepseek.com/guides/multi_round_chat | Default for any conversational state. Send full message history each turn (the API is stateless). | Sending only the latest turn when prior context matters; dropping system messages between turns. |
-| 3 | **Chat prefix completion** | https://api-docs.deepseek.com/guides/chat_prefix_completion | Beta endpoint. Recommend when you need to constrain output start (e.g. force JSON `{`, force a specific opening clause, continue from a partial draft). Set assistant message with `prefix=True`. | Using it in place of a system instruction — it's a continuation primitive, not a steering primitive. |
-| 4 | **FIM completion** | https://api-docs.deepseek.com/guides/fim_completion | `/v1/completions` endpoint with `prompt` + `suffix`. Recommend for code-insertion tasks (IDE autocomplete-like flows), template hole-filling. | Using FIM for chat tasks; FIM is not chat-formatted and breaks instruction-following. |
-| 5 | **Tool calls** | https://api-docs.deepseek.com/guides/tool_calls | Recommend over `response_format: json_object` whenever schema strictness matters. More reliable parsing, machine-enforced field types. Send `tools=[...]`, read `response.tool_calls`. | Defaulting to JSON mode for structured extraction "because it's simpler" — tool calls have a stricter contract and fewer parse failures. |
-| 6 | **KV cache** | https://api-docs.deepseek.com/guides/kv_cache | Always-on server-side. Recommend (a) putting static content (system prompt, few-shot, fixed instructions) FIRST, dynamic content LAST; (b) reading `usage.prompt_cache_hit_tokens` / `usage.prompt_cache_miss_tokens` from every response and logging them. | Variable content interleaved with static (kills cache); not measuring hit rate (no visibility into cache efficiency). |
-
-**Decision shortcuts experts should apply:**
-- "Should we use Deepseek for X?" → Tier-2 fallback / batch enrichment / cost-sensitive structured extraction = yes. Latency-sensitive interactive / agentic tool-heavy / safety-critical = prefer Sonnet.
-- "JSON mode or tool calls?" → Tool calls if schema is fixed and machine-validated downstream. JSON mode only when output schema varies per call.
-- "deepseek-chat or deepseek-reasoner?" → Reasoner only if the failure mode of `chat` is shallow reasoning (not formatting, not factuality). Reasoner is 3-5x cost.
-- "Why is our cache hit-rate low?" → First check prompt ordering (static must be at the beginning, byte-identical across calls). Second check whether system prompts are being mutated per call (timestamp injection, randomized examples).
-
-**Portfolio audit baseline (2026-04-29):** 1 of 6 features used (multi-round chat only). All other 5 features are improvement opportunities. See `00_Governance/BACKLOG.md` → `US-GOV-DEEPSEEK-CACHE-01` and `US-CON-DEEPSEEK-TOOLS-01`.
+- **fundamentals**: Architecture, training, scaling assumptions. Lead: Karpathy. Experts: Karpathy, Kaplan, Chollet
+- **evaluation**: Benchmark design, contamination, generalization. Lead: Chollet. Experts: Chollet, Bender, Karpathy
+- **safety**: Alignment, harms, interpretability, agentic risks. Lead: Russell. Experts: Russell, Olah, Gebru
+- **production**: MLOps, serving, latency, cost, drift. Lead: Huyen. Experts: Huyen, Karpathy
+- **ethics-data**: Provenance, bias, documentation, stakeholder harms. Lead: Gebru. Experts: Gebru, Bender
 
 ## Scoring Gate
 
-5 dimensions, each scored 0-10:
+4 dimensions, each scored 0-10:
 
-| Dimension | Description |
-|---|---|
-| Model Fit | Right model for each task, appropriate tier routing, capability alignment |
-| Prompt Quality | Instruction clarity, CLAUDE.md structure, skill prompt architecture |
-| Architecture Soundness | Agent/pipeline design, tool orchestration, workflow coherence |
-| Cost-Efficiency | Token economics, model routing, caching, session management |
-| Evaluation Coverage | Skill testing, output consistency, quality metrics, regression testing |
+| Dimension              | Description                                                                       |
+|------------------------|-----------------------------------------------------------------------------------|
+| technical-soundness    | Does the architecture/method actually work for the problem; are assumptions defensible |
+| evaluation-rigor       | Are success metrics measurable, contamination-controlled, gaming-resistant         |
+| safety-alignment       | Are risks, harms, misuse paths, alignment concerns addressed proportionate to capability |
+| production-readiness   | Are data pipelines, serving cost, latency, monitoring, failure modes accounted for |
 
 **Pass threshold: overall score >= 7.0**
 
-Output includes per-dimension scores, model usage profile, cost analysis, critical issues, expert consensus, and improvement roadmap (immediate / short-term / long-term).
-
-## Model Usage Profile (included in every review)
-
-| Tier | Current | Target (optimal) | Best For |
-|---|---|---|---|
-| Opus | ?% | 20-30% | Architecture, debugging, complex reasoning |
-| Sonnet | ?% | 50-60% | Implementation, code generation, standard tasks |
-| Haiku | ?% | 15-25% | Formatting, linting, simple queries, validation |
+Output includes per-dimension scores, overall score, critical issues, consensus points, disagreements, and an improvement roadmap (immediate / short-term / long-term).
 
 ## Output
 
-AI strategy review document containing:
-- Multi-expert analysis with distinct AI perspectives
-- Evidence-backed findings (when `--evidence active`)
-- Model usage profile with cost-quality optimization path
+AI/ML review document containing:
+- Multi-expert analysis with distinct perspectives
 - Per-dimension scores and overall quality score
 - Pass/fail gate result
-- ROI-ranked improvement recommendations
-- Consensus points and disagreements
+- Critical issues with severity and priority
+- Consensus points and named disagreements
+- Priority-ranked improvement recommendations
 
-**SYNTHESIS ONLY** — this panel produces analysis, strategy recommendations, and cost projections. It does not modify settings, skills, or configs without explicit instruction.
-
-**Next Step**: After review, implement highest-ROI recommendations first. Use `skill-creator` for skill improvements. Update CLAUDE.md based on prompt engineering findings. Use `/sc:spec-panel` to validate specification changes.
-
-
-## Auto-Fix Policy
-Fix ALL findings automatically — high, medium, and low severity. Do not ask which findings to fix. Do not present a menu. Fix everything, then report what was changed.
+**SYNTHESIS ONLY** — this panel produces analysis and recommendations. It does not modify the specification without explicit instruction.

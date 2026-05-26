@@ -48,16 +48,16 @@ Maximum 10 tasks per batch. If more are needed, split into phases.
 
 **Feature items:** last task in every batch must be:
 ```
-- [ ] **Quality tail: greenlight + cleanup**
-  - AC: `greenlight --all` 100% green, no Medium+ findings
+- [ ] **Quality tail: panel-score + cleanup**
+  - AC: all applicable panels score ≥ 7.0, tests pass, DOD checklist green, no Medium+ findings
   - Test: existing suite
   - Risk: §3.4 Explicit Exceptions
 ```
 
 **Bug items:** last two tasks must be (in order):
 ```
-- [ ] **Quality tail: greenlight + cleanup**
-  - AC: `greenlight --all` 100% green, no Medium+ findings
+- [ ] **Quality tail: panel-score + cleanup**
+  - AC: all applicable panels score ≥ 7.0, tests pass, DOD checklist green, no Medium+ findings
   - Test: existing suite
   - Risk: §3.4 Explicit Exceptions
 - [ ] **[BUG] Doc tail: QUALITY_AUDIT.md + KNOWN_PATTERNS.md**
@@ -92,7 +92,7 @@ DOR: ✓ all tasks passed
 ## Rules
 
 - Every batch ends with a quality tail task — no exceptions
-- Bug batches end with two tail tasks: greenlight tail + doc tail — both mandatory
+- Bug batches end with two tail tasks: panel-score tail + doc tail — both mandatory
 - Feature tasks require a User Story reference; bug tasks require root cause + regression test instead
 - Never skip the DOR gate — features that fail full DOR and bugs that fail DOR-lite go back to Refining
 - Never add more than 10 tasks per batch — split large items into phases

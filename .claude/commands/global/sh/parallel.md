@@ -1,6 +1,6 @@
 ---
 name: sh-parallel
-description: "Use when facing 2+ independent tasks with no shared state — file writes, search agents, or build steps that can run concurrently"
+description: Break tasks into independent subagents for parallel execution when no shared state or sequential dependencies exist
 ---
 
 # Dispatching Parallel Agents

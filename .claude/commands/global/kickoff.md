@@ -15,35 +15,278 @@ Replaces manually reading 4+ files at session start.
 
 ## Protocol
 
-### Step 1 — Scan pipeline files
+### Step −1.5 — Consult session stamp (always runs first)
 
-Read these files (all reads in parallel):
+```bash
+source "$HOME/.claude/scripts/stamp-context.sh"
+# Provides: $SID, $STAMP_FILE, $STAMP, $GOAL_STOP
+echo "STAMP=${STAMP:-<none>}"
+```
 
-1. `INBOX.md` — count untriaged bullet items below the `---` separator
-2. `BACKLOG.md` — count items in each section (Ideation, Refining, Ready). For Ready items, extract title + `#N` priority
-3. `TODO-Today.md` — count unchecked `- [ ]` items. Extract the first unchecked item as "next task"
-4. `DONE-Today.md` — count items completed today (items with today's date or HH:MM timestamps)
-5. `MEMORY.md` — read `retro_stories_since_last` counter
+- `$STAMP` empty → unstamped behavior; continue Step −1 as written, including the Step 3b session-type prompt.
+- `$STAMP` set → stamped behavior: this session is committed to `$STAMP`. Skip Step 3b entirely (no `execution|clearing|meta` prompt, no US-ID question). The stamp IS the commitment. Auto-write `~/.local/state/claude/session-type`:
+  ```bash
+  mkdir -p ~/.local/state/claude
+  printf '%s\n%s\n' "execution" "$STAMP" > ~/.local/state/claude/session-type
+  ```
+  Then, at Step 5, override the "next action" suggestion to point at the stamp's critical-path item: read `$GOAL_STOP` if it exists and its `project` matches `$STAMP`, take `scope_uss[]` filtered by `status != "ready"` sorted by `order` ASC — first entry is the next action. If no goal-stop, suggest `/resume-handover` (which will itself consult the stamp).
+
+### Step −1 — Validate CLAUDE_SESSION_ID (always runs first)
+
+Before any other step, validate that `CLAUDE_SESSION_ID` is available and well-formed:
+
+```bash
+SID="${CLAUDE_SESSION_ID:-}"
+UUID_RE='^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+# Fallback: read from persisted file written by session-id-persist.sh SessionStart hook.
+# CLAUDE_SESSION_ID is injected into hook subprocesses but NOT into Bash tool subprocesses
+# (a Claude Code harness gap in VS Code extension mode). The hook writes it to disk at
+# session start so scripts can recover it.
+if [ -z "$SID" ]; then
+  PERSIST_FILE="$HOME/.local/state/claude/current-session-id"
+  [ -f "$PERSIST_FILE" ] && SID="$(cat "$PERSIST_FILE" | tr -d '[:space:]')"
+fi
+if [ -z "$SID" ]; then
+  echo "CLAUDE_SESSION_ID not set — session-id-persist.sh hook not yet fired (new session?). Proceeding without SID isolation." >&2
+  SID8="unknown0"
+  echo "SID_WARN=$SID8"
+elif ! echo "$SID" | grep -qE "$UUID_RE"; then
+  echo "CLAUDE_SESSION_ID malformed: $SID — proceeding without SID isolation." >&2
+  SID8="unknown0"
+  echo "SID_WARN=$SID8"
+else
+  SID8="${SID:0:8}"
+  echo "SID_OK=$SID8"
+fi
+```
+
+If SID is unavailable the kickoff continues in degraded mode (uses `TODO-Today.md` fallback, no per-session isolation). Only abort if a hard infrastructure failure prevents any pipeline reads.
+
+### Step 0 — Discover pipeline root (1 bash call)
+
+Run this single command. It checks known project locations first (fast path) and only falls back to `find` if none match. When the location changes, update `reference_central_backlog.md` in session memory.
+
+```bash
+ROOT=""
+# Fast path: current dir, then known project backlogs (ordered by frequency of use)
+for KNOWN in \
+  "." \
+  "$HOME/projects/00_Governance" \
+  "$HOME/projects/20_CONSIGLIERE" \
+  "$HOME/projects/30_SVG-PAINT" \
+  "$HOME/projects/50_KETO" \
+  "$HOME/projects/60_skillengineering" \
+  "$HOME/projects/15_SAAS/20_PosterEngine" \
+  "$HOME/projects/10_Sidequest" \
+  "$HOME/projects/30_briefing-publisher" \
+  "$HOME/projects/75_Coaching/10_Consulting/syllabus" \
+  "$HOME/projects/75_Coaching/10_Consulting/MeetingProcessor"; do
+  [ -f "$KNOWN/BACKLOG.md" ] && ROOT="$KNOWN" && break
+done
+# Fallback: filesystem scan (slow — only hits when CWD is unknown project)
+if [ -z "$ROOT" ]; then
+  FOUND=$(find . -maxdepth 3 -name "BACKLOG.md" 2>/dev/null | head -1)
+  ROOT="${FOUND:+$(dirname "$FOUND")}"
+  ROOT="${ROOT:-.}"
+fi
+echo "ROOT=$ROOT"
+```
+
+Store the result as `$ROOT`. All subsequent file paths use `$ROOT/filename`. If a new project path was found via the fallback, add it to the fast-path list above and update `reference_central_backlog.md` in session memory.
+
+At the same time (parallel), load the QMD schema:
+```
+ToolSearch query="select:mcp__qmd__query"
+```
+
+### Step 0b — Generate TODAY-view.md (merged session queue)
+
+After discovering ROOT, generate the daily merged view of all active session queues:
+
+```bash
+ROOT=<value from Step 0> python3 - <<'EOF'
+import sys, os
+sys.path.insert(0, os.path.join(os.environ.get('ROOT', '.'), 'scripts'))
+from pathlib import Path
+from datetime import date
+try:
+    from session_utils import merge_todo_files, migrate_todo_today
+    root = Path(os.environ.get('ROOT', '.'))
+    migrate_todo_today(root)
+    content = merge_todo_files(root, date.today().isoformat())
+    view = root / 'TODAY-view.md'
+    view.write_text(content, encoding='utf-8')
+    session_files = list(root.glob('TODO-????????-????-????-????-????????????.md'))
+    print(f"TODAY_VIEW_SESSIONS={len(session_files)}")
+except ImportError:
+    print("TODAY_VIEW_SESSIONS=0 (session_utils not available)")
+EOF
+```
+
+This file is gitignored — it is a derived read-only aggregate. Sessions never write TODAY-view.md directly.
+
+### Step 0c — Check Dreaming FAILED sentinels
+
+```bash
+SENTINEL_DIR="$HOME/.local/state/dreaming"
+# Use find, not a shell glob: zsh's nomatch error bypasses `2>/dev/null`.
+FAILED_FILES=$(find "$SENTINEL_DIR" -maxdepth 1 -name 'FAILED-*' -type f 2>/dev/null)
+FAILED_COUNT=$(printf '%s\n' "$FAILED_FILES" | grep -c . || true)
+if [ "${FAILED_COUNT:-0}" -gt 0 ]; then
+  while IFS= read -r F; do
+    [ -n "$F" ] || continue
+    RUN_ID=$(basename "$F" | sed 's/FAILED-//')
+    echo "WARNING: Dreaming run $RUN_ID failed — review $SENTINEL_DIR/run-$RUN_ID.log" >&2
+  done <<< "$FAILED_FILES"
+fi
+```
+
+If any FAILED sentinels exist, add a `DREAMING FAILURES: {N} run(s) failed` line to the kickoff summary in Step 4. Do not block kickoff — this is a warning only.
+
+### Step 0d — Refresh BACKLOG age badges
+
+```bash
+REFRESH="$ROOT/scripts/refresh_backlog_ages.py"
+if [ -f "$REFRESH" ]; then
+  python3 "$REFRESH" 2>/dev/null || echo "WARN: refresh_backlog_ages.py failed (non-blocking)"
+fi
+```
+
+Runs silently on success. If the script is missing or fails, kickoff continues unaffected. Output (e.g. `Updated 3 age badge(s)`) is discarded — badges are refreshed in the file regardless.
+
+### Step 1 — Scan all pipeline files (1 bash call)
+
+Run this single inline Python script — it reads all pipeline files and emits structured output in one round-trip:
+
+```bash
+python3 - <<'EOF'
+import re, os
+from datetime import date
+from pathlib import Path
+
+ROOT = os.environ.get('ROOT', '.')
+today = date.today().isoformat()
+
+def slurp(p):
+    try: return Path(p).read_text()
+    except: return ''
+
+# INBOX: count bullets below last ---
+def inbox_count(content):
+    parts = content.split('---')
+    if len(parts) < 2: return 0
+    return sum(1 for l in parts[-1].splitlines() if l.strip().startswith('-'))
+
+# BACKLOG: section counts, items grouped by state, struck-through
+def analyze_backlog(content):
+    struck_n = len(re.findall(r'^### ~~', content, re.MULTILINE))
+    by_state = {'Ideation': [], 'Refining': [], 'Ready': []}
+    for sec in re.split(r'^### ', content, flags=re.MULTILINE):
+        us_m = re.match(r'(US-\S+)', sec)
+        if not us_m:
+            continue
+        us = us_m.group(1).rstrip(':')
+        state_m = re.search(r'State:\*\* (\w+)', sec)
+        prio_m  = re.search(r'Priority:\*\* (P\d)', sec)
+        state = state_m.group(1) if state_m else None
+        prio  = prio_m.group(1) if prio_m else '--'
+        if state in by_state:
+            by_state[state].append((us, prio))
+    ready_n    = len(by_state['Ready'])
+    refining_n = len(by_state['Refining'])
+    ideation_n = len(by_state['Ideation'])
+    return ready_n, refining_n, ideation_n, struck_n, by_state
+
+# TODO-Today: unchecked count + first unchecked task
+def todo_stats(content):
+    lines = content.splitlines()
+    unchecked = [l for l in lines if re.match(r'- \[ \]', l)]
+    checked   = [l for l in lines if re.match(r'- \[x\]', l, re.I)]
+    first = unchecked[0].strip() if unchecked else 'none'
+    return len(unchecked), len(checked), first
+
+# DONE-Today: count entries with today's date
+def done_today(content):
+    return content.count(today)
+
+# Autopilot
+try:
+    import sys as _sys
+    _sys.path.insert(0, f'{ROOT}/scripts')
+    from session_utils import autopilot_check as _ap_check, get_sid8 as _get_sid8
+    _SID8 = _get_sid8()
+    def autopilot(p):
+        try:
+            content = Path(p).read_text().strip()
+            result = _ap_check(content, _SID8)
+            if result.startswith('skip:'):
+                return f'SKIPPED (owned by {result[5:]})'
+            return result or 'empty'
+        except Exception:
+            return 'missing'
+except ImportError:
+    def autopilot(p):
+        try: return Path(p).read_text().strip() or 'empty'
+        except: return 'missing'
+
+# MEMORY: retro counter
+def retro_count(content):
+    m = re.search(r'retro_stories_since_last[:\s]+(\d+)', content)
+    return m.group(1) if m else '?'
+
+# CONTEXT.md: term count
+def context_terms(content):
+    if not content: return 0, 0
+    terms     = len(re.findall(r'^- ', content, re.MULTILINE))
+    unresolved = content.count('[unresolved]')
+    return terms, unresolved
+
+inbox_c   = inbox_count(slurp(f'{ROOT}/INBOX.md'))
+bl_r, bl_f, bl_i, struck, by_state = analyze_backlog(slurp(f'{ROOT}/BACKLOG.md'))
+import os as _os
+_sid = _os.environ.get('CLAUDE_SESSION_ID', '')
+_todo_file = f'TODO-{_sid}.md' if _sid else 'TODO-Today.md'
+unc, chk, nxt = todo_stats(slurp(f'{ROOT}/{_todo_file}'))
+done_c    = done_today(slurp(f'{ROOT}/DONE-Today.md'))
+ap        = autopilot(f'{ROOT}/.autopilot')
+retro     = retro_count(slurp(f'{ROOT}/MEMORY.md'))
+ctx_terms, ctx_unres = context_terms(slurp(f'{ROOT}/CONTEXT.md'))
+
+print(f"INBOX={inbox_c}")
+print(f"BACKLOG={bl_i}i/{bl_f}r/{bl_r}R  struck={struck}")
+print(f"TODO={unc} unchecked / {chk} checked")
+print(f"DONE_TODAY={done_c}")
+print(f"AUTOPILOT={ap}")
+print(f"RETRO={retro}")
+print(f"CONTEXT_TERMS={ctx_terms}  unresolved={ctx_unres}")
+print(f"NEXT={nxt}")
+for state in ('Ideation', 'Refining', 'Ready'):
+    for us, prio in by_state[state]:
+        print(f"{state.upper():<10}  {prio:<3}  {us}")
+EOF
+```
+
+Set `ROOT` from Step 0 before running: `ROOT=<discovered-root> python3 - <<'EOF' ...`
 
 ### Step 2 — Auto-groom backlog
 
 Lightweight grooming pass that runs automatically every kickoff. Prevents zombie accumulation.
 
 **2a. Archive shipped items (write):**
-Scan `BACKLOG.md` for struck-through (`~~`) items and items marked SHIPPED/FIXED/RESOLVED/SUPERSEDED/DONE/Parked.
+Scan `$ROOT/BACKLOG.md` for struck-through (`~~`) items and items marked SHIPPED/FIXED/RESOLVED/SUPERSEDED/DONE/Parked.
 For each found:
-- Append a 1-line summary to `done/BACKLOG-ARCHIVE.md` under a `### Grooming Pass {YYYY-MM-DD}` header (create header only if items found, reuse if today's header already exists)
+- Append a 1-line summary to `$ROOT/done/BACKLOG-ARCHIVE.md` under a `### Grooming Pass {YYYY-MM-DD}` header
 - Remove the item (and all its indented sub-lines) from `BACKLOG.md`
 - Count removals per section
 
 **2b. Duplicate scan (read-only):**
-Within each section, check for items that share a title keyword match (same feature name appearing in 2+ bullets). Flag duplicates in the report — do NOT auto-merge (merging requires human judgement).
+Within each section, check for items that share a title keyword match. Flag duplicates in the report — do NOT auto-merge.
 
 **2c. Quick staleness flag (read-only):**
-For active (non-struck-through) items only:
+From the Step 1 output:
 - Ideation items with a date > 14 days ago → flag as stale
 - Refining items with a date > 14 days ago and no spec link → flag as stale
-- Items referencing deprecated platforms (PowerShell `.ps1`, `D:\`, WinForms) on macOS → flag as platform-blocked
+- Items referencing deprecated platforms → flag as platform-blocked
 
 **2d. Report:**
 ```
@@ -52,60 +295,88 @@ GROOMING:    {N} archived ({N} Ideation, {N} Refining, {N} Ready)
              (or "Clean — no action needed")
 ```
 
-If 0 items found across all checks, print the "Clean" variant and skip the detail lines.
+### Step 2f — Paperclip ↔ BACKLOG sync (write, guarded)
 
-### Step 2f — Paperclip ↔ BACKLOG sync (write)
+Only run if the script exists:
 
 ```bash
-python3 ~/projects/00_Governance/scripts/paperclip_backlog_sync.py
+SYNC=~/projects/00_Governance/scripts/paperclip_backlog_sync.py
+[ -f "$SYNC" ] && python3 "$SYNC" || echo "paperclip sync: script not found, skipping"
 ```
 
-Reconcile drift accumulated since last lightsout. Reads Paperclip for `done` issues with `US-XX-NN` ids, ticks matching ACs in `BACKLOG.md`, rewrites State lines to `SHIPPED (GET-N done YYYY-MM-DD)`. Idempotent — skips blocks already containing `SHIPPED`. Include the reconcile count in the kickoff summary if non-zero.
+Include reconcile count in summary if non-zero.
 
-### Step 2e — QMD context scan (read-only)
+### Step 2e + Step 3 — QMD context + cross-project priority (2 parallel calls)
 
-Query QMD for recent activity in the active project's collection to surface specs, plans, and design docs the next task may depend on. This replaces manually grepping for markdown files.
+Send both QMD queries in the same parallel tool-use block:
 
+**Query A — project context:**
 ```
 mcp__qmd__query searches=[
   {"type": "lex", "query": "spec plan design"},
   {"type": "vec", "query": "recent implementation plan or spec for current sprint"}
-] collections=["<active-project-collection>"] limit=5
+] collections=["<active-project-collection>"] limit=3
 ```
 
-- Use the project's QMD collection name (e.g., `svg-paint`, `consigliere`, `keto`, `poster-engine`, `governance`)
-- If the project has no QMD collection, skip silently
-- Include top 3 results (title + file path) in the summary under `CONTEXT:`
-- This gives the session awareness of recent design decisions without reading full files
+**Query B — cross-project priority:**
+```
+mcp__qmd__query searches=[
+  {"type": "lex", "query": "Ready priority cross-project"},
+  {"type": "vec", "query": "high priority cross-project backlog items that outrank local work"}
+] collections=["governance"] limit=3
+```
 
-### Step 3 — Check governance state
+Use the project's QMD collection name (e.g., `svg-paint`, `consigliere`, `keto`, `poster-engine`, `governance`).
+If the project has no QMD collection, send only Query B.
 
-6. `.autopilot` — read semaphore state (`run` / `pause` / missing)
-7. Cross-project priority check via QMD (not hardcoded file read):
-   ```
-   mcp__qmd__query searches=[
-     {"type": "lex", "query": "Ready priority cross-project"},
-     {"type": "vec", "query": "high priority cross-project backlog items that outrank local work"}
-   ] collections=["governance"] limit=5
-   ```
-   Flag any governance-level Ready items that outrank the local project queue.
+### Step 3b — Session type declaration
+
+**If `$STAMP` was set in Step −1.5: SKIP this step entirely.** The stamp already committed the session to `execution` against `$STAMP`, and `~/.local/state/claude/session-type` was already written. Do not prompt.
+
+**Unstamped only:** Before producing the summary, ask the user one line:
+
+> **Session type: `execution` | `clearing` | `meta`?**
+
+Required follow-up depending on type:
+- `execution` — name the BACKLOG `US-ID` being advanced. Refuse to start an execution session without one (the failure-mode this rule targets is "executed nothing, shipped nothing").
+- `clearing` — name the blocker being cleared AND the downstream task it unblocks (so /lightsout can verify the unblock happened).
+- `meta` — name the artifact being built (skill, hook, governance edit, spec).
+
+Write the declaration so /lightsout Step S can label the audit:
+
+```bash
+mkdir -p ~/.local/state/claude
+{
+  echo "$SESSION_TYPE"     # first line: type
+  echo "$SESSION_TASK"     # second line: US-ID, blocker name, or artifact name
+} > ~/.local/state/claude/session-type
+```
+
+This step is the structural commitment. Mid-session drift to a different type (e.g. starting `execution` then pivoting to skill-building) means `/lightsout` immediately and a fresh session with the new type — do not extend the current session under the wrong type.
 
 ### Step 4 — Produce summary
 
-Print this summary (adapt counts from actual data):
+Print this summary (adapt counts from Step 1 output):
 
 ```
-KICKOFF — SVG-PAINT — {YYYY-MM-DD}
+KICKOFF — {PROJECT} — {YYYY-MM-DD}
 ════════════════════════════════════════
 INBOX:       {N} untriaged items
 BACKLOG:     {N} Ideation · {N} Refining · {N} Ready
+             Ideation:  {prio}  {US-ID}
+                        {prio}  {US-ID}  (one line per item)
+             Refining:  {prio}  {US-ID}
+             Ready:     {prio}  {US-ID}
 GROOMING:    {grooming summary from Step 2d}
 QUEUE:       {N} unchecked ({N} done today)
 AUTOPILOT:   {state}
 RETRO:       {N}/10 stories until next retro
 CONTEXT:     {top 3 QMD results: title (file), or "No recent docs"}
+DOMAIN:      {N terms in CONTEXT.md, or "No CONTEXT.md — create during next /sh:brainstorm"}
 ════════════════════════════════════════
 ```
+
+Omit a state block entirely if it has 0 items.
 
 ### Step 5 — Suggest next action
 
@@ -134,11 +405,12 @@ Never start implementation. The user decides what to do based on the summary.
 ## Rules
 
 - Step 2a (archive) is the ONLY write operation — all other steps are read-only
-- All file reads in parallel for speed
+- Step 0 (path discovery) ALWAYS runs first — never hardcode paths
+- Step 1 (analysis) is ONE bash call — never split into multiple separate reads or greps
+- Steps 2e + Step 3 QMD queries are sent in ONE parallel tool-use block
 - Summary format is fixed — don't add prose or explanations
 - Exactly ONE suggested next action — don't overwhelm with choices
-- If a file doesn't exist or is empty, report 0 for that section
-- If DONE-Today.md has items but no timestamps, count all items
+- If a file doesn't exist or is empty, report 0 for that section (the script handles this)
 - Archive pass is idempotent — running twice produces the same result
 - Never modify active (non-struck-through) items
 - Never change priorities (`#N` ordering is human-owned)
@@ -150,10 +422,11 @@ When `--dry-run` is passed, **do not scan files or archive items**. Instead, out
 
 | Action | Target | What Would Change |
 |--------|--------|-------------------|
-| read | `INBOX.md`, `BACKLOG.md`, `TODO-Today.md`, `DONE-Today.md`, `MEMORY.md` | Parallel pipeline file scan |
+| discover | `find . -maxdepth 3 -name BACKLOG.md` | Locate pipeline root (Step 0) |
+| analyze | `$ROOT/{INBOX,BACKLOG,TODO-Today,DONE-Today,MEMORY,CONTEXT}.md` | Single-script stats (Step 1) |
 | archive | `BACKLOG.md` → `done/BACKLOG-ARCHIVE.md` | Remove shipped/struck-through items (Step 2a — only write operation) |
-| scan | `BACKLOG.md` sections | Duplicate detection + staleness flags (read-only) |
-| read | `.autopilot`, `governance/BACKLOG.md` | Governance state check |
+| sync | `paperclip_backlog_sync.py` (if exists) | Reconcile Paperclip → BACKLOG |
+| query | QMD context + cross-project (parallel) | Surface relevant specs and cross-project priorities |
 | report | stdout | Summary + single next-action suggestion |
 
 Include which files exist and estimated item counts per section.

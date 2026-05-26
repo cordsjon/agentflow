@@ -1,6 +1,6 @@
 ---
 name: sh-handoff
-description: "Use when session context is heavy (>20 tool calls), before switching to an unrelated task, or when handing off to a fresh session"
+description: Save session context to HANDOVER.md for seamless continuation. Captures last task, queue position, git state, decisions, and resume checklist.
 ---
 
 # Handoff — Context Save
@@ -14,18 +14,10 @@ Produce a `HANDOVER.md` document that captures the full session state so the nex
 - On manual session end
 - When switching between agents or worktrees
 
-## Filename
-
-`HANDOVER-{PROJECT}-{YYYY-MM-DD-HHmm}.md` in the project root (or `00_Governance/` for cross-project sessions).
-
-**Examples:** `HANDOVER-75_Coaching-2026-04-27-1557.md`, `HANDOVER-30_SVG-PAINT-2026-04-27-2230.md`
-
-Never overwrite an existing handover — each session gets its own file.
-
-## Template
+## HANDOVER.md Template
 
 ```markdown
-# HANDOVER — [project] — [date] [time]
+# HANDOVER — [date] [time]
 
 ## Last Completed Task
 - **Task:** [task description from TODO-Today]
@@ -53,7 +45,6 @@ Never overwrite an existing handover — each session gets its own file.
 
 ## Resume Checklist
 - [ ] Read this HANDOVER.md
-- [ ] Query QMD for project context before exploring codebase
 - [ ] Check `.autopilot` semaphore state
 - [ ] Review TODO-Today.md queue
 - [ ] Verify git state matches above
@@ -65,50 +56,12 @@ Never overwrite an existing handover — each session gets its own file.
 1. **Gather state** — read TODO-Today.md, DONE-Today.md, git status, git log
 2. **Capture decisions** — any architectural choices, tradeoffs, or interpretations made
 3. **Note open questions** — anything that needs human input or clarification
-4. **Re-index QMD** — QMD is the default first-read method for all markdown discovery. The next session depends on QMD being current.
-   ```bash
-   # Trigger re-index for the active project's collection
-   curl -s http://localhost:3131/api/reindex -X POST -H 'Content-Type: application/json' \
-     -d '{"collection": "<active-project-collection>"}' 2>/dev/null || echo "QMD reindex skipped"
-   ```
-   Then verify with a QMD query for a document you created or modified this session:
-   ```
-   mcp__qmd__query searches=[{"type": "lex", "query": "<title or keyword from session doc>"}]
-     collections=["<active-project-collection>"] limit=3
-   ```
-   If the document doesn't appear, warn in HANDOVER.md under Open Questions: "QMD index may be stale — verify after session."
-5. **Write HANDOVER-{PROJECT}-{YYYY-MM-DD-HHmm}.md** — in project root (or `00_Governance/` for cross-project sessions). Never overwrite an existing file. Note the full path as `HANDOVER_PATH` for step 7.
-6. **Update memory** — persist key decisions to `.claude/memory.md` if not already there
-7. **Copy to clipboard** — pipe the handover filename + Open Questions + Resume Checklist to `pbcopy` so the user can paste directly into the next session window. `HANDOVER_PATH` is the absolute path from step 5:
-   ```bash
-   HANDOVER_NAME=$(basename "$HANDOVER_PATH")
-   RESUME=$(awk '/^## Resume Checklist/{found=1; next} found && /^## /{exit} found{print}' "$HANDOVER_PATH" | head -15)
-   OPEN=$(awk '/^## Open Questions/{found=1; next} found && /^## /{exit} found{print}' "$HANDOVER_PATH" | head -15)
-   {
-     printf "Continuing from: %s\n" "$HANDOVER_NAME"
-     [ -n "$OPEN" ] && printf "\n## Open Questions\n%s\n" "$OPEN"
-     [ -n "$RESUME" ] && printf "\n## Resume Checklist\n%s\n" "$RESUME"
-   } | pbcopy
-   echo "Clipboard ready — paste into new session: $HANDOVER_NAME"
-   ```
-   macOS only (`pbcopy`). Always run — never skip.
-
-## Session Attribution (always runs)
-
-After writing HANDOVER.md, attribute this session's primary project for the token burn dashboard:
-
-```bash
-mkdir -p ~/.local/state/codeburn
-SESSION_ID=$(basename "$(ls -t ~/.claude/projects/-Users-jcords-macmini-projects/*.jsonl | head -1)" .jsonl)
-echo "{\"session_id\": \"$SESSION_ID\", \"project\": \"<canonical project name>\", \"date\": \"$(date +%Y-%m-%d)\"}" >> ~/.local/state/codeburn/session-projects.jsonl
-```
-
-Determine the primary project from the session's work (DONE-Today entries, git activity, file paths touched). Use canonical names (`30_SVG-PAINT`, `50_KETO`, `20_CONSIGLIERE`, etc.).
+4. **Write HANDOVER.md** — in project root, overwriting any previous handover
+5. **Update memory** — persist key decisions to `.claude/memory.md` if not already there
 
 ## Key Rules
 
-- **Never overwrite** — each session writes a new uniquely named file; old handovers accumulate as history
+- HANDOVER.md is always overwritten (not appended) — it represents current state only
 - Git state must be captured from actual `git status` and `git log` output, not assumed
 - If autopilot is pausing due to findings, include the finding summary in Open Questions
-- The resume checklist is fixed — always include all 6 items
-- QMD indexing of session additions is mandatory before writing HANDOVER.md — the next session depends on QMD for context
+- The resume checklist is fixed — always include all 5 items

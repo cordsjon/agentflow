@@ -1,6 +1,6 @@
 ---
-name: sh-dor
-description: Run the Definition of Ready gate check before implementing a task. Verifies a task is ready for implementation including spec-panel score >= 7.0 requirement.
+name: agentflow-dor
+description: Run the Definition of Ready gate check before implementing a task. Use when verifying a task is ready for implementation, when an item is about to move from Ready to in-progress, or when DOR validation fails.
 ---
 
 # Definition of Ready (DOR) Gate
@@ -13,7 +13,7 @@ An item that fails DOR cannot enter TODO-Today queue. It stays in BACKLOG#Refini
 - [ ] **User Stories defined** — at least 1 US with "As a [role], I want [goal], so that [benefit]"
 - [ ] **Acceptance Criteria written** — each US has explicit, testable AC (Given/When/Then or bullet list)
 - [ ] **Spec document exists** — requirements doc with functional requirements
-- [ ] **Spec panel score >= 7.0** — `/sh:spec-panel` critique passed (or issues addressed and re-scored). Score below 7.0 blocks graduation to Ready
+- [ ] **Spec panel score >= 7.0** — critique passed (or issues addressed and re-scored)
 - [ ] **Architecture decided** — if new modules/APIs: design doc exists
 - [ ] **Dependencies identified** — any blocking work listed and either complete or explicitly deferred
 - [ ] **Test strategy known** — which test types needed (unit, integration, E2E), approximate count
@@ -46,4 +46,6 @@ Gate: Score >= 7.0 + all checklist items -> graduate to Ready
 Any item missing or score < 7.0 -> stay in Refining, iterate
 ```
 
-The `/sh:workflow` skill MUST NOT generate a queue for an item that hasn't passed DOR.
+The workflow skill MUST NOT generate a queue for an item that hasn't passed DOR.
+
+See [checklist.md](checklist.md) for a printable version.
