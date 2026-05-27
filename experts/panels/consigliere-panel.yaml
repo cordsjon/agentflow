@@ -1,0 +1,104 @@
+name: consigliere-panel
+description: "Multi-expert intelligence-pipeline review — 6 focus areas: discovery-quality, ingestion-resilience, scoring-validity, platform-compliance, taxonomy-coherence, cost-efficiency"
+
+modes:
+  - discussion
+  - critique
+  - socratic
+
+focus-areas:
+  - name: discovery-quality
+    description: "Coverage of relevant signals, recall vs precision discipline, ground-truth definition"
+    lead: dj-patil
+    experts: [dj-patil, chip-huyen, sam-newman]
+
+  - name: ingestion-resilience
+    description: "Delivery semantics, idempotency, partial-failure behavior, backfill correctness"
+    lead: jay-kreps
+    experts: [jay-kreps, martin-kleppmann, michael-nygard]
+
+  - name: scoring-validity
+    description: "Operator-decision realism, eval harness rigor, non-self-referential metrics"
+    lead: dj-patil
+    experts: [dj-patil, chip-huyen, karl-wiegers]
+
+  - name: platform-compliance
+    description: "PII handling, GDPR, OAuth scoping, trust-boundary explicitness, ToS"
+    lead: filippo-valsorda
+    experts: [filippo-valsorda, kelsey-hightower, simon-willison]
+
+  - name: taxonomy-coherence
+    description: "Disjointness, conflict-resolution rules, taxonomy versioning, provenance"
+    lead: deborah-mcguinness
+    experts: [deborah-mcguinness, karl-wiegers, donella-meadows]
+
+  - name: cost-efficiency
+    description: "Marginal value of each LLM call, baseline-vs-LLM measured delta, per-item unit economics"
+    lead: mike-mason
+    experts: [mike-mason, charity-majors, chip-huyen]
+
+default-experts: [dj-patil, jay-kreps, deborah-mcguinness, filippo-valsorda, mike-mason, michael-nygard]
+
+max-experts: 7
+
+auto-select:
+  - keywords: [taxonomy, ontology, classification, hierarchy]
+    add: [deborah-mcguinness]
+  - keywords: [scoring, ground-truth, evaluation, validation]
+    add: [dj-patil]
+  - keywords: [streaming, event, log, backfill, delivery-semantics]
+    add: [jay-kreps]
+  - keywords: [pii, gdpr, oauth, secret, threat-model]
+    add: [filippo-valsorda]
+  - keywords: [cost, budget, llm-cost, marginal, baseline]
+    add: [mike-mason]
+  - keywords: [consistency, idempotency, write-model, partial-failure]
+    add: [martin-kleppmann]
+
+# Mandatory pre-scoring checks (deterministic, not LLM-delegated).
+# Same rationale as spec-panel: compensate for LLM hallucination of arithmetic
+# consistency over freeform tables. Flag arithmetic mismatches as CRITICAL
+# findings BEFORE expert deliberation begins.
+pre-scoring-checks:
+  - name: table-reconciliation
+    description: |
+      Before any expert scores, extract every numeric claim from the spec's tables
+      (counts, totals, "≥ N", "= N", "exactly N"). For each numeric claim, verify
+      it reconciles with the enumerated items in other sections. Flag arithmetic
+      mismatches as CRITICAL findings BEFORE expert deliberation begins.
+    when: spec contains 2+ tables with numeric values
+
+  - name: cost-arithmetic
+    description: |
+      Consigliere-specific: verify per-tier €/day caps reconcile with per-call
+      €/item × volume estimates. For each tier (T1 Ollama, T2 local-LLM, T3 Claude),
+      cross-check: stated cap (€/day) >= (€/item × estimated items/day). Flag
+      caps that are silently exceeded under stated volumes as CRITICAL findings.
+      This catches the common failure mode where cost ceilings are aspirational
+      and not arithmetically grounded in the call-volume assumptions elsewhere in
+      the spec.
+    when: spec contains per-tier cost caps AND per-item cost estimates
+
+scoring:
+  min: 0
+  max: 10
+  pass-threshold: 7.0
+  dimensions:
+    - name: discovery-quality
+      description: "Coverage of relevant signals; recall vs precision discipline; ground-truth definition"
+    - name: ingestion-resilience
+      description: "Delivery semantics, idempotency, partial-failure behavior, backfill correctness"
+    - name: scoring-validity
+      description: "Operator-decision realism (per Patil), eval harness, non-self-referential metrics"
+    - name: platform-compliance
+      description: "PII handling, GDPR, OAuth scoping, trust-boundary explicitness"
+    - name: taxonomy-coherence
+      description: "Disjointness, conflict resolution rules, taxonomy versioning, provenance"
+    - name: cost-efficiency
+      description: "Marginal value of each LLM call, baseline-vs-LLM measured delta, per-item unit economics"
+
+output:
+  default-format: standard
+  include-scores: true
+  include-roadmap: true
+  include-consensus: true
